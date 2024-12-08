@@ -95,7 +95,7 @@ export default function HomePage() {
                 className="space-y-6"
               >
                 <h2 className="text-lg font-medium flex items-center gap-2">
-                  Start here
+                  Start here 👇🏾
                 </h2>
 
                 {/* Country Selection */}
