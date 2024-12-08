@@ -29,6 +29,13 @@ function PublicRoute() {
   return <Outlet />;
 }
 
+// Create a wrapper component to handle the formData
+function ResultsPageWrapper() {
+  // You can get formData from URL state or localStorage
+  const formData = JSON.parse(localStorage.getItem('formData') || '{}');
+  return <ResultsPage formData={formData} />;
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -60,7 +67,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/checker/results/:id',
-    element: <ResultsPage />,
+    element: <ResultsPageWrapper />,
   },
   {
     path: '/previous-checks',
