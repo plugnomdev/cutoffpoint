@@ -329,20 +329,20 @@ export default function GradeChecker() {
           {/* Form Content */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             {/* Step-specific help */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="mb-6 p-4 bg-[#2d3192]/5 rounded-lg border border-[#2d3192]/20">
               <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                <div className="flex-shrink-0 w-6 h-6 bg-[#2d3192] rounded-full flex items-center justify-center">
                   <span className="text-xs font-bold text-white">?</span>
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium text-blue-900 mb-1">
+                  <h4 className="text-sm font-medium text-[#2d3192] mb-1">
                     {currentStep === 0 && "Enter your background information"}
                     {currentStep === 1 && "Select grades for core subjects and choose electives"}
                     {currentStep === 2 && "Review your information before payment"}
                     {currentStep === 3 && "Complete payment for qualification check"}
                     {currentStep === 4 && "View your programme qualification results"}
                   </h4>
-                  <p className="text-xs text-blue-700">
+                  <p className="text-xs text-[#2d3192]/80">
                     {currentStep === 0 && "This helps us determine your eligibility for programmes in your selected school."}
                     {currentStep === 1 && "Core subjects are mandatory. Choose 2-4 elective subjects and enter all your grades."}
                     {currentStep === 2 && "Review your information before proceeding to payment."}

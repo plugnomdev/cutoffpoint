@@ -26,9 +26,9 @@ export default function Button({
   };
 
   const variantStyles = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-100',
-    secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-50',
-    outline: 'border-2 border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-100'
+    primary: 'bg-[#2d3192] text-white hover:bg-[#253085] hover:opacity-90 focus:ring-blue-100 shadow-lg hover:shadow-xl cursor-pointer transition-all duration-200',
+    secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-50 cursor-pointer',
+    outline: 'border-2 border-[#2d3192] text-[#2d3192] hover:bg-[#2d3192] hover:text-white hover:opacity-90 focus:ring-blue-100 cursor-pointer transition-all duration-200'
   };
 
   const widthStyles = fullWidth ? 'w-full' : '';

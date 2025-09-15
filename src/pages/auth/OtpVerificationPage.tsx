@@ -44,7 +44,7 @@ export default function OtpVerificationPage() {
       <div className="w-1/2 p-8 flex items-center justify-center">
         <div className="max-w-md w-full">
           <div className="flex items-center gap-2 mb-16">
-            <GraduationCap className="w-10 h-10 text-blue-600" />
+            <GraduationCap className="w-10 h-10 text-[#2d3192]" />
             <span className="text-2xl font-bold text-gray-900">CutoffPoint</span>
           </div>
 
@@ -78,7 +78,7 @@ export default function OtpVerificationPage() {
                 disabled={!canResend}
                 className={`text-sm ${
                   canResend
-                    ? 'text-blue-600 hover:text-blue-700 cursor-pointer'
+                    ? 'text-[#2d3192] hover:text-blue-700 cursor-pointer'
                     : 'text-gray-400 cursor-not-allowed'
                 }`}
               >

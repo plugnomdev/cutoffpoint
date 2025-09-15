@@ -91,16 +91,16 @@ export default function PercentageGradeForm({
       </div>
 
       {/* Grade Scale Reference */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 shadow-sm">
+      <div className="bg-gradient-to-r from-[#2d3192]/5 to-[#2d3192]/10 p-6 rounded-xl border border-[#2d3192]/20 shadow-sm">
         <div className="flex items-center mb-4">
-          <Info className="w-5 h-5 text-blue-600 mr-2" />
-          <h3 className="text-lg font-semibold text-blue-900">Grade Conversion Reference</h3>
+          <Info className="w-5 h-5 text-[#2d3192] mr-2" />
+          <h3 className="text-lg font-semibold text-[#2d3192]">Grade Conversion Reference</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {gradeRanges.map(range => (
-            <div key={range.grade} className="bg-white p-3 rounded-lg border border-blue-100 text-center shadow-sm">
-              <div className="text-lg font-bold text-blue-800 mb-1">{range.grade}</div>
-              <div className="text-sm text-blue-600 font-medium">{range.min}-{range.max}%</div>
+            <div key={range.grade} className="bg-white p-3 rounded-lg border border-[#2d3192]/10 text-center shadow-sm hover:shadow-md transition-shadow">
+              <div className="text-lg font-bold text-[#2d3192] mb-1">{range.grade}</div>
+              <div className="text-sm text-[#2d3192]/80 font-medium">{range.min}-{range.max}%</div>
             </div>
           ))}
         </div>
@@ -267,26 +267,26 @@ export default function PercentageGradeForm({
       </div>
 
       {/* Progress Summary */}
-      <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200">
+      <div className="bg-gradient-to-r from-[#2d3192]/5 to-[#fbc024]/5 p-6 rounded-xl border border-[#2d3192]/20">
         <div className="flex items-center mb-4">
-          <CheckCircle className="w-6 h-6 text-purple-600 mr-3" />
-          <h4 className="text-xl font-bold text-purple-900">Progress Summary</h4>
+          <CheckCircle className="w-6 h-6 text-[#2d3192] mr-3" />
+          <h4 className="text-xl font-bold text-[#2d3192]">Progress Summary</h4>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-lg border border-purple-100 text-center">
-            <div className="text-2xl font-bold text-blue-600 mb-1">
+          <div className="bg-white p-4 rounded-lg border border-[#2d3192]/10 text-center hover:shadow-md transition-shadow">
+            <div className="text-2xl font-bold text-[#2d3192] mb-1">
               {Object.values(corePercentages).filter(p => p > 0).length}
             </div>
             <div className="text-sm text-gray-600">Core Subjects</div>
           </div>
-          <div className="bg-white p-4 rounded-lg border border-purple-100 text-center">
-            <div className="text-2xl font-bold text-green-600 mb-1">
+          <div className="bg-white p-4 rounded-lg border border-[#2d3192]/10 text-center hover:shadow-md transition-shadow">
+            <div className="text-2xl font-bold text-[#fbc024] mb-1">
               {selectedElectives.length}
             </div>
             <div className="text-sm text-gray-600">Electives Selected</div>
           </div>
-          <div className="bg-white p-4 rounded-lg border border-purple-100 text-center">
-            <div className="text-2xl font-bold text-purple-600 mb-1">
+          <div className="bg-white p-4 rounded-lg border border-[#2d3192]/10 text-center hover:shadow-md transition-shadow">
+            <div className="text-2xl font-bold text-[#2d3192] mb-1">
               {Object.values(corePercentages).filter(p => p > 0).length + Object.values(electivePercentages).filter(p => p > 0).length}
             </div>
             <div className="text-sm text-gray-600">Total Grades</div>

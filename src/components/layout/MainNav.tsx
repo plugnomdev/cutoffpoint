@@ -31,7 +31,7 @@ export default function MainNav() {
                 to={link.path}
                 className={`text-base font-medium transition-colors ${
                   isActivePath(link.path)
-                    ? 'text-blue-600'
+                    ? 'text-[#2d3192]'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -76,7 +76,7 @@ export default function MainNav() {
                 to={link.path}
                 className={`block px-4 py-3 rounded-md text-base font-medium ${
                   isActivePath(link.path)
-                    ? 'bg-blue-50 text-blue-600'
+                    ? 'bg-blue-50 text-[#2d3192]'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
                 onClick={() => setIsMenuOpen(false)}

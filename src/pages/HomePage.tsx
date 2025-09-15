@@ -4,8 +4,179 @@ import { useState, useEffect } from 'react';
 import { fetchCountries, Country } from '../services/api/universityApi';
 import { School, fetchSchoolsByCountry } from '../services/api/universityApi';
 import { Helmet } from 'react-helmet-async';
+import { Globe, Building2, ChevronDown, Search, X } from 'lucide-react';
 
 import MainLayout from '../components/layout/MainLayout';
+
+// Modern Searchable Select Component
+interface SearchableSelectProps {
+  options: Array<{ value: string; label: string; flag?: string }>;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  disabled?: boolean;
+  required?: boolean;
+  icon?: React.ReactNode;
+  showSelectedFlag?: boolean;
+}
+
+function SearchableSelect({
+  options,
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
+  required = false,
+  icon,
+  showSelectedFlag = false
+}: SearchableSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+
+  const filteredOptions = options.filter(option =>
+    option.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const selectedOption = options.find(option => option.value === value);
+  const displayPlaceholder = required ? `${placeholder} *` : placeholder;
+
+  const handleSelect = (optionValue: string) => {
+    onChange(optionValue);
+    setIsOpen(false);
+    setSearchTerm('');
+    setHighlightedIndex(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        setIsOpen(true);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightedIndex(prev =>
+          prev < filteredOptions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightedIndex(prev =>
+          prev > 0 ? prev - 1 : filteredOptions.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
+          handleSelect(filteredOptions[highlightedIndex].value);
+        }
+        break;
+      case 'Escape':
+        setIsOpen(false);
+        setSearchTerm('');
+        setHighlightedIndex(-1);
+        break;
+    }
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        className={`w-full p-3 pl-8 border rounded-lg bg-white transition-all duration-200 flex items-center justify-between ${
+          disabled
+            ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+            : 'hover:border-[#2d3192]/50 focus:border-[#2d3192] focus:ring-2 focus:ring-[#2d3192]/20'
+        } ${isOpen ? 'border-[#2d3192] ring-2 ring-[#2d3192]/20' : 'border-gray-300'}`}
+      >
+        <div className="flex items-center flex-1 min-w-0">
+          {/* Show selected country's flag or default icon */}
+          {selectedOption && showSelectedFlag && selectedOption.flag ? (
+            <span className="mr-2 flex-shrink-0 text-lg leading-none">{selectedOption.flag}</span>
+          ) : (
+            icon && <span className="mr-2 flex-shrink-0 text-[#2d3192]">{icon}</span>
+          )}
+          <span className={`truncate ${!selectedOption ? 'text-gray-500' : 'text-gray-900'}`}>
+            {selectedOption ? selectedOption.label : displayPlaceholder}
+          </span>
+        </div>
+        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ml-2 ${
+          isOpen ? 'rotate-180' : ''
+        }`} />
+      </button>
+
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setIsOpen(false)}
+          />
+
+          {/* Dropdown */}
+          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-hidden">
+            {/* Search Input */}
+            <div className="p-2 border-b border-gray-200">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search..."
+                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#2d3192]"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Options */}
+            <div className="max-h-48 overflow-y-auto">
+              {filteredOptions.length === 0 ? (
+                <div className="p-3 text-sm text-gray-500 text-center">
+                  No options found
+                </div>
+              ) : (
+                filteredOptions.map((option, index) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleSelect(option.value)}
+                    className={`w-full p-3 text-left hover:bg-[#2d3192]/5 transition-colors duration-150 flex items-center ${
+                      index === highlightedIndex ? 'bg-[#2d3192]/5' : ''
+                    } ${option.value === value ? 'bg-[#2d3192]/10 text-[#2d3192] font-medium' : 'text-gray-900'}`}
+                  >
+                    {option.flag && <span className="mr-2 leading-none">{option.flag}</span>}
+                    <span className="truncate">{option.label}</span>
+                    {option.value === value && (
+                      <div className="ml-auto w-2 h-2 bg-[#2d3192] rounded-full"></div>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function HomePage() {
 
@@ -100,13 +271,13 @@ export default function HomePage() {
         <meta name="keywords" content="legon cutoff point, ucc cutoff point, knust cutoff point" />
       </Helmet>
       {/* Hero Section - Full viewport height */}
-      <div className="bg-blue-600 py-12 sm:py-20 relative flex items-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
+      <div className="bg-[#2d3192] py-12 sm:py-20 relative flex items-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
         <div className="absolute inset-0">
           <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="xMinYMin meet">
             <defs>
               <pattern id="grid" patternUnits="userSpaceOnUse" width="20" height="20"> {/* Increased size */}
-                <path d="M 20 0 L 20 100" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="1" /> {/* Reduced opacity */}
-                <path d="M 0 20 L 100 20" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="1" /> {/* Reduced opacity */}
+                <path d="M 20 0 L 20 100" stroke="rgba(255, 255, 255, 0.03)" strokeWidth="1" /> {/* Further reduced opacity */}
+                <path d="M 0 20 L 100 20" stroke="rgba(255, 255, 255, 0.03)" strokeWidth="1" /> {/* Further reduced opacity */}
               </pattern>
             </defs>
             <rect width="100" height="100" fill="url(#grid)" />
@@ -116,8 +287,8 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 md:gap-12">
             <div className="text-white sm:pr-8 flex flex-col justify-center text-center sm:text-left">
               <h1 className="text-4xl sm:text-5xl font-bold mb-6">
-                Match Your <span className="text-yellow-400">Results</span> to <br className="hidden sm:block" />
-                 Great Programmes
+                Match Your <span className="text-[#fbc024]">Results</span> to <br className="hidden sm:block" />
+                 Great <span className="text-[#fbc024]">Programmes</span>
               </h1>
               <p className="text-lg sm:text-xl mb-4">
                 Check your options before you submit your application
@@ -141,62 +312,47 @@ export default function HomePage() {
 
                 {/* Country Selection */}
                 <div className="space-y-2">
-                  <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700">
                     Country
                   </label>
-                  <div className="relative">
-                    <select 
-                      id="country"
-                      className="w-full p-3 pl-12 border rounded-lg appearance-none bg-white cursor-pointer"
-                      value={selectedCountry}
-                      onChange={(e) => {
-                        setSelectedCountry(e.target.value);
-                        setSelectedSchool('');
-                      }}
-                      required
-                    >
-                      <option value="">Select Country</option>
-                      {countries.map(country => (
-                        <option key={country.code} value={country.code}>
-                          {country.name}
-                        </option>
-                      ))}
-                    </select>
-                    {selectedCountry && (
-                      <span
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-xl pointer-events-none"
-                      >
-                        {countries.find(c => c.code === selectedCountry)?.flag}
-                      </span>
-                    )}
-                  </div>
+                  <SearchableSelect
+                    options={countries.map(country => ({
+                      value: country.code,
+                      label: country.name,
+                      flag: country.flag
+                    }))}
+                    value={selectedCountry}
+                    onChange={(value) => {
+                      setSelectedCountry(value);
+                      setSelectedSchool('');
+                    }}
+                    placeholder="Select Country"
+                    required
+                    icon={<Globe className="w-4 h-4" />}
+                    showSelectedFlag={true}
+                  />
                 </div>
 
                 {/* School Selection */}
                 <div className="space-y-2">
-                  <label htmlFor="school" className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700">
                     School
                   </label>
-                  <select 
-                    id="school"
-                    className="w-full p-3 border rounded-lg cursor-pointer"
+                  <SearchableSelect
+                    options={schools.map(school => ({
+                      value: school.id.toString(),
+                      label: school.name
+                    }))}
                     value={selectedSchool}
-                    onChange={(e) => setSelectedSchool(e.target.value)}
+                    onChange={setSelectedSchool}
+                    placeholder={selectedCountry ? (loadingSchools ? 'Loading...' : 'Select School') : 'Select country first'}
                     disabled={!selectedCountry || loadingSchools}
                     required
-                  >
-                    <option value="">
-                      {selectedCountry ? (loadingSchools ? 'Loading...' : 'Select School') : 'Select country first'}
-                    </option>
-                    {schoolError && (
-                      <option value="" disabled>{schoolError}</option>
-                    )}
-                    {schools.map(school => (
-                      <option key={school.id} value={school.id.toString()}>
-                        {school.name}
-                      </option>
-                    ))}
-                  </select>
+                    icon={<Building2 className="w-4 h-4" />}
+                  />
+                  {schoolError && (
+                    <p className="text-sm text-red-600 mt-1">{schoolError}</p>
+                  )}
                 </div>
 
                 <Button 

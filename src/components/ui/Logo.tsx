@@ -8,7 +8,7 @@ interface LogoProps {
 export default function Logo({ className = '' }: LogoProps) {
   return (
     <Link to="/" className={`flex items-center gap-2 ${className}`}>
-      <GraduationCap className="w-8 h-8 text-blue-600" />
+      <GraduationCap className="w-8 h-8 text-[#2d3192]" />
       <span className="text-xl font-bold">CutoffPoint</span>
     </Link>
   );

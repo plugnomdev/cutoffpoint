@@ -197,7 +197,7 @@ export default function ProspectiveStudentChecker() {
                         currentStep > index
                           ? 'bg-green-500 border-green-500 text-white shadow-lg'
                           : currentStep === index
-                          ? 'bg-blue-500 border-blue-500 text-white shadow-lg animate-pulse'
+                          ? 'bg-[#2d3192] border-[#2d3192] text-white shadow-lg animate-pulse'
                           : 'bg-white border-gray-300 text-gray-400'
                       }`}
                     >
@@ -209,7 +209,7 @@ export default function ProspectiveStudentChecker() {
                     </div>
                     <span
                       className={`mt-3 text-sm font-semibold text-center transition-colors ${
-                        currentStep >= index ? 'text-gray-900' : 'text-gray-500'
+                        currentStep >= index ? 'text-[#2d3192]' : 'text-gray-500'
                       }`}
                     >
                       {step}
@@ -219,7 +219,7 @@ export default function ProspectiveStudentChecker() {
                     <div className="absolute top-6 left-12 right-0 h-1 -z-10 bg-gray-200 rounded">
                       <div
                         className={`h-full rounded transition-all duration-500 ${
-                          currentStep > index ? 'bg-green-500' : 'bg-gray-200'
+                          currentStep > index ? 'bg-[#2d3192]' : 'bg-gray-200'
                         }`}
                         style={{
                           width: currentStep > index ? '100%' : currentStep === index ? '50%' : '0%',

@@ -52,7 +52,7 @@ export default function UniversityCard({
         </div>
         <button
           onClick={onApply}
-          className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg font-medium text-sm
+          className="w-full py-2.5 px-4 bg-[#2d3192] text-white rounded-lg font-medium text-sm
                    hover:bg-blue-700 active:bg-blue-800 transition-colors
                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
