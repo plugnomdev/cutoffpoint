@@ -6,76 +6,12 @@ type ElectivesSelectionFormProps = {
   updateFields: (fields: Partial<FormData>) => void;
 }
 
-const ELECTIVES_BY_COURSE = {
-  'General Arts': [
-    'Literature in English',
-    'Economics',
-    'Government',
-    'History',
-    'Christian Religious Studies',
-    'Islamic Religious Studies',
-    'Geography',
-    'French'
-  ],
-  'General Science': [
-    'Physics',
-    'Chemistry',
-    'Biology',
-    'Elective Mathematics',
-    'ICT',
-    'Further Mathematics'
-  ],
-  'Business': [
-    'Financial Accounting',
-    'Business Management',
-    'Economics',
-    'Cost Accounting',
-    'ICT',
-    'Elective Mathematics'
-  ],
-  'Visual Arts': [
-    'Graphic Design',
-    'Picture Making',
-    'Ceramics',
-    'Sculpture',
-    'Textiles',
-    'Leatherwork',
-    'Economics',
-    'Literature in English'
-  ],
-  'Home Economics': [
-    'Management in Living',
-    'Food and Nutrition',
-    'Textiles',
-    'Economics',
-    'Chemistry',
-    'Biology'
-  ],
-  'Agricultural Science': [
-    'Crop Husbandry',
-    'Animal Husbandry',
-    'Economics',
-    'Chemistry',
-    'Biology',
-    'Physics'
-  ],
-  'Technical': [
-    'Technical Drawing',
-    'Woodwork',
-    'Metalwork',
-    'Applied Electricity',
-    'Electronics',
-    'Auto Mechanics',
-    'Physics',
-    'Chemistry'
-  ]
-} as const;
 
 export default function ElectivesSelectionForm({
   selectedElectives,
   updateFields
 }: ElectivesSelectionFormProps) {
-  const { formData } = useChecker();
+  const { formData, electiveSubjects } = useChecker();
   const course = formData.background.courseOffered;
 
   const toggleElective = (elective: string) => {
@@ -84,6 +20,7 @@ export default function ElectivesSelectionForm({
     if (selectedElectives.includes(elective)) {
       newElectives = selectedElectives.filter(e => e !== elective);
     } else {
+      // Allow up to 4 electives as per API requirement
       if (selectedElectives.length >= 4) {
         return; // Maximum 4 electives
       }
@@ -101,25 +38,33 @@ export default function ElectivesSelectionForm({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {ELECTIVES_BY_COURSE[course as keyof typeof ELECTIVES_BY_COURSE]?.map(elective => (
-          <button
-            key={elective}
-            type="button"
-            onClick={() => toggleElective(elective)}
-            className={`p-4 text-left rounded-lg border-2 transition-all ${
-              selectedElectives.includes(elective)
-                ? 'border-blue-600 bg-blue-50 text-blue-700'
-                : 'border-gray-200 hover:border-gray-300'
-            } ${
-              selectedElectives.length >= 4 && !selectedElectives.includes(elective)
-                ? 'opacity-50 cursor-not-allowed'
-                : ''
-            }`}
-            disabled={selectedElectives.length >= 4 && !selectedElectives.includes(elective)}
-          >
-            <div className="font-medium">{elective}</div>
-          </button>
-        ))}
+        {electiveSubjects
+          .filter(subject => {
+            // TODO: Implement course-based filtering
+            // This should filter electives based on the selected courseOffered
+            // For now, showing all electives - update this based on API structure
+            return true;
+          })
+          .map(subject => (
+            <button
+              key={subject.id}
+              type="button"
+              onClick={() => toggleElective(subject.name)}
+              className={`p-4 text-left rounded-lg border-2 transition-all ${
+                selectedElectives.includes(subject.name)
+                  ? 'border-blue-600 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 hover:border-gray-300'
+              } ${
+                selectedElectives.length >= 4 && !selectedElectives.includes(subject.name)
+                  ? 'opacity-50 cursor-not-allowed'
+                  : ''
+              }`}
+              disabled={selectedElectives.length >= 4 && !selectedElectives.includes(subject.name)}
+            >
+              <div className="font-medium">{subject.name}</div>
+              <div className="text-sm text-gray-500">{subject.subject_code}</div>
+            </button>
+          ))}
       </div>
 
       {selectedElectives.length > 0 && (

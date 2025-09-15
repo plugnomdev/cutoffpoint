@@ -1,8 +1,8 @@
 import { Clock, School, ArrowRight, Filter, Search, Loader, X, ChevronUp, ChevronDown } from 'lucide-react';
-import CheckerLayout from '../../components/layout/CheckerLayout';
 import Button from '../../components/ui/Button';
 import { useState } from 'react';
 import MainLayout from '../../components/layout/MainLayout';
+import { Helmet } from 'react-helmet-async';
 
 // Move previousChecks into a mock database object
 const MOCK_DB = {
@@ -96,6 +96,22 @@ export default function PreviousChecks() {
 
   return (
     <MainLayout>
+      <Helmet>
+        <title>Check WASSCE Cut-off Points for Various Programmes in Ghana and Africa - CutoffPoint.Africa</title>
+        <meta name="title" content="Check WASSCE Cut-off Points for Various Programmes in Ghana and Africa - CutoffPoint.Africa" />
+        <meta name="description" content="Add your grades and check the list of programmes you qualify for in Legon, UCC, KNUST, Nursing, and Teacher Training Colleges in Ghana." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://cutoffpoint.africa/" />
+        <meta property="og:title" content="Check WASSCE Cut-off Points for Various Programmes in Ghana and Africa - CutoffPoint.Africa" />
+        <meta property="og:description" content="Add your grades and check the list of programmes you qualify for in Legon, UCC, KNUST, Nursing, and Teacher Training Colleges in Ghana." />
+        <meta property="og:image" content="https://learninghana.com/wp-content/uploads/2022/09/cutoff-01.jpg" />
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://cutoffpoint.com.gh/" />
+        <meta property="twitter:title" content="Find Best Programmes in Legon, KNUST, UCC and more - CutoffPoint.Africa" />
+        <meta property="twitter:description" content="Add your grades and check the list of programmes you qualify for in Legon, UCC, KNUST, Nursing, and Teacher Training Colleges in Ghana." />
+        <meta property="twitter:image" content="https://learninghana.com/wp-content/uploads/2022/09/cutoff-01.jpg" />
+        <meta name="keywords" content="legon cutoff point, ucc cutoff point, knust cutoff point" />
+      </Helmet>
       <div className="bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="space-y-6 sm:space-y-8">

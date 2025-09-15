@@ -1,65 +1,106 @@
-import Logo from '../components/ui/Logo';
 import Button from '../components/ui/Button';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { fetchCountries, Country } from '../services/api/universityApi';
+import { School, fetchSchoolsByCountry } from '../services/api/universityApi';
+import { Helmet } from 'react-helmet-async';
+
 import MainLayout from '../components/layout/MainLayout';
 
 export default function HomePage() {
+
   const navigate = useNavigate();
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedSchool, setSelectedSchool] = useState('');
 
-  const countries = [
-    { code: 'GH', name: 'Ghana', flag: 'https://flagcdn.com/gh.svg' },
-    { code: 'NG', name: 'Nigeria', flag: 'https://flagcdn.com/ng.svg' }
-  ];
+  const [countries, setCountries] = useState<Country[]>([]);
 
-  const schools = {
-    GH: [
-      'KNUST',
-      'University of Ghana',
-      'University of Cape Coast',
-      'Ashesi University'
-    ],
-    NG: [
-      'University of Lagos',
-      'University of Ibadan',
-      'Covenant University'
-    ]
-  };
+
+  const [schools, setSchools] = useState<School[]>([]);
+  const [loadingSchools, setLoadingSchools] = useState(false);
+  const [schoolError, setSchoolError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchCountry = async () => {
+    const fetchInitialData = async () => {
       try {
+        // Fetch countries from API
+        const apiCountries = await fetchCountries();
+        setCountries(apiCountries);
+        // Try to auto-detect country as before
         const response = await fetch('https://ipapi.co/json/');
         const data = await response.json();
-        const countryCode = data.country ? data.country.toUpperCase() : 'GH'; // Default to Ghana if no country found
-        setSelectedCountry(countryCode);
-        setSelectedSchool(''); // Reset school selection
+        // Try to match detected country code with API country code
+        const detectedCode = data.country ? data.country.toUpperCase() : null;
+        const found = apiCountries.find(c => c.code.toUpperCase() === detectedCode);
+        setSelectedCountry(found ? found.code : (apiCountries[0]?.code || ''));
+        setSelectedSchool('');
       } catch (error) {
-        console.error('Error fetching country:', error);
-        setSelectedCountry('GH'); // Default to Ghana on error
+        console.error('Error fetching country or countries:', error);
+        setSelectedCountry(countries[0]?.code || '');
       }
     };
-
-    fetchCountry();
+    fetchInitialData();
   }, []);
+
+  // Fetch schools when selectedCountry changes
+  useEffect(() => {
+    const fetchSchools = async () => {
+      setLoadingSchools(true);
+      setSchoolError(null);
+      setSchools([]);
+      setSelectedSchool('');
+      const countryObj = countries.find(c => c.code === selectedCountry);
+      if (!selectedCountry || !countryObj) {
+        setLoadingSchools(false);
+        return;
+      }
+      try {
+        const schoolsData = await fetchSchoolsByCountry(countryObj.id);
+        setSchools(schoolsData);
+      } catch (err: any) {
+        setSchoolError(err.message || 'Failed to fetch schools');
+      } finally {
+        setLoadingSchools(false);
+      }
+    };
+    if (selectedCountry) {
+      fetchSchools();
+    }
+  }, [selectedCountry, countries]);
 
   const handleContinue = () => {
     if (!selectedCountry || !selectedSchool) return;
-    
+    const countryObj = countries.find(c => c.code === selectedCountry);
+    const schoolObj = schools.find(s => s.id === Number(selectedSchool));
+    if (!countryObj || !schoolObj) return;
     navigate('/checker', {
       state: {
-        country: selectedCountry,
-        school: selectedSchool
+        country: countryObj,
+        school: schoolObj
       }
     });
   };
 
   return (
     <MainLayout>
-      {/* Hero Section */}
-      <div className="bg-blue-600 py-12 sm:py-20 relative flex items-center min-h-[600px] sm:min-h-0">
+      <Helmet>
+        <title>Check WASSCE Cut-off Points for Various Programmes in Ghana and Africa - CutoffPoint.Africa</title>
+        <meta name="title" content="Check WASSCE Cut-off Points for Various Programmes in Ghana and Africa - CutoffPoint.Africa" />
+        <meta name="description" content="Add your grades and check the list of programmes you qualify for in Legon, UCC, KNUST, Nursing, and Teacher Training Colleges in Ghana." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://cutoffpoint.africa/" />
+        <meta property="og:title" content="Check WASSCE Cut-off Points for Various Programmes in Ghana and Africa - CutoffPoint.Africa" />
+        <meta property="og:description" content="Add your grades and check the list of programmes you qualify for in Legon, UCC, KNUST, Nursing, and Teacher Training Colleges in Ghana." />
+        <meta property="og:image" content="https://learninghana.com/wp-content/uploads/2022/09/cutoff-01.jpg" />
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://cutoffpoint.com.gh/" />
+        <meta property="twitter:title" content="Find Best Programmes in Legon, KNUST, UCC and more - CutoffPoint.Africa" />
+        <meta property="twitter:description" content="Add your grades and check the list of programmes you qualify for in Legon, UCC, KNUST, Nursing, and Teacher Training Colleges in Ghana." />
+        <meta property="twitter:image" content="https://learninghana.com/wp-content/uploads/2022/09/cutoff-01.jpg" />
+        <meta name="keywords" content="legon cutoff point, ucc cutoff point, knust cutoff point" />
+      </Helmet>
+      {/* Hero Section - Full viewport height */}
+      <div className="bg-blue-600 py-12 sm:py-20 relative flex items-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
         <div className="absolute inset-0">
           <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="xMinYMin meet">
             <defs>
@@ -122,11 +163,11 @@ export default function HomePage() {
                       ))}
                     </select>
                     {selectedCountry && (
-                      <img 
-                        src={countries.find(c => c.code === selectedCountry)?.flag}
-                        alt="Country flag"
-                        className="w-6 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                      />
+                      <span
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-xl pointer-events-none"
+                      >
+                        {countries.find(c => c.code === selectedCountry)?.flag}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -141,15 +182,18 @@ export default function HomePage() {
                     className="w-full p-3 border rounded-lg cursor-pointer"
                     value={selectedSchool}
                     onChange={(e) => setSelectedSchool(e.target.value)}
-                    disabled={!selectedCountry}
+                    disabled={!selectedCountry || loadingSchools}
                     required
                   >
                     <option value="">
-                      {selectedCountry ? 'Select School' : 'Select country first'}
+                      {selectedCountry ? (loadingSchools ? 'Loading...' : 'Select School') : 'Select country first'}
                     </option>
-                    {selectedCountry && schools[selectedCountry as keyof typeof schools].map(school => (
-                      <option key={school} value={school}>
-                        {school}
+                    {schoolError && (
+                      <option value="" disabled>{schoolError}</option>
+                    )}
+                    {schools.map(school => (
+                      <option key={school.id} value={school.id.toString()}>
+                        {school.name}
                       </option>
                     ))}
                   </select>
@@ -168,21 +212,22 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Value Proposition Section */}
+      {/* Value Proposition Section - Commented out to keep page full height */}
+      {/*
       <div className="py-12 sm:py-20 px-4">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-16">
             Transforming how <span className="text-blue-600">African</span> students<br className="hidden sm:block" />
             access higher education
           </h2>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
             <div className="border border-blue-600 rounded-lg p-8">
               <h3 className="text-xl font-semibold mb-4">
                 For <span className="text-blue-600">Applicants</span>
               </h3>
               <p className="text-gray-600 mb-8">
-                Students can access the platform on any device, and apply to multiple institutions 
+                Students can access the platform on any device, and apply to multiple institutions
                 without the hassle of submitting each application individually.
               </p>
               <div className="space-y-4">
@@ -190,13 +235,13 @@ export default function HomePage() {
                 <p className="text-sm text-gray-500">Register as a student or applicant</p>
               </div>
             </div>
-            
+
             <div className="border border-blue-600 rounded-lg p-8">
               <h3 className="text-xl font-semibold mb-4">
                 For <span className="text-blue-600">Institutions</span>
               </h3>
               <p className="text-gray-600 mb-8">
-                CutoffPoint offers a streamlined admissions process, reducing administrative workloads 
+                CutoffPoint offers a streamlined admissions process, reducing administrative workloads
                 and increasing access to a diverse pool of applicants from across the continent.
               </p>
               <div className="space-y-4">
@@ -207,6 +252,7 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-    </MainLayout>
+      */}
+      </MainLayout>
   );
-} 
+}

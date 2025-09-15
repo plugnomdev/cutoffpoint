@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Phone } from 'lucide-react';
 import Logo from '../ui/Logo';
 import Button from '../ui/Button';
 import { useState } from 'react';
@@ -38,11 +38,16 @@ export default function MainNav() {
                 {link.label}
               </Link>
             ))}
-            <Link to="/login">
-              <Button size="md">
-                Login
-              </Button>
-            </Link>
+            {/* WhatsApp Contact Icon */}
+            <a
+              href="https://wa.me/233123456789?text=Hello%20I%20need%20help%20with%20CutoffPoint"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 text-gray-600 hover:text-green-600 transition-colors"
+              title="Contact us on WhatsApp"
+            >
+              <Phone className="h-6 w-6" />
+            </a>
           </div>
 
           {/* Mobile menu button */}
@@ -79,12 +84,18 @@ export default function MainNav() {
                 {link.label}
               </Link>
             ))}
+            {/* WhatsApp Contact for Mobile */}
             <div className="px-4 py-3">
-              <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                <Button fullWidth size="md">
-                  Login
-                </Button>
-              </Link>
+              <a
+                href="https://wa.me/233123456789?text=Hello%20I%20need%20help%20with%20CutoffPoint"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center justify-center w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                title="Contact us on WhatsApp"
+              >
+                <Phone className="h-5 w-5" />
+              </a>
             </div>
           </div>
         </div>

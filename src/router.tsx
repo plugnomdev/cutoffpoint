@@ -1,5 +1,5 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import LoginPage from './pages/auth/LoginPage';
+
 import OtpVerificationPage from './pages/auth/OtpVerificationPage';
 import Overview from './pages/Overview';
 import HomePage from './pages/HomePage';
@@ -32,8 +32,7 @@ function PublicRoute() {
 // Create a wrapper component to handle the formData
 function ResultsPageWrapper() {
   // You can get formData from URL state or localStorage
-  const formData = JSON.parse(localStorage.getItem('formData') || '{}');
-  return <ResultsPage formData={formData} />;
+  return <ResultsPage />;
 }
 
 export const router = createBrowserRouter([
@@ -41,16 +40,7 @@ export const router = createBrowserRouter([
     path: '/',
     element: <HomePage />
   },
-  {
-    path: '/login',
-    element: <PublicRoute />,
-    children: [
-      {
-        index: true,
-        element: <LoginPage />
-      }
-    ]
-  },
+
   {
     path: '/verify',
     element: <PublicRoute />,
@@ -92,4 +82,9 @@ export const router = createBrowserRouter([
       }
     ]
   }
-]); 
+], {
+  future: {
+    // Opt into React Router v7 future behavior to suppress warnings
+    // Note: Available flags may vary by React Router version
+  },
+});

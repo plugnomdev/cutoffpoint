@@ -17,9 +17,6 @@ export default function MainFooter() {
             <Link to="/study-ghana" className="text-gray-600 hover:text-gray-900 block mb-2">
               Study in Ghana 🇬🇭
             </Link>
-            <Link to="/study-nigeria" className="text-gray-600 hover:text-gray-900 block mb-2">
-              Study in Nigeria 🇳🇬
-            </Link>
           </div>
           <div>
             <Link to="/team" className="text-gray-600 hover:text-gray-900 block mb-2">
