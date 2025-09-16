@@ -41,6 +41,7 @@ export default function GradeChecker() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
   const lastSavedDataRef = useRef<string>('');
 
   // Auto-save functionality
@@ -180,8 +181,7 @@ export default function GradeChecker() {
   const steps = [
     'Grade Input',
     'Background',
-    'Confirmation',
-    'Payment',
+    'Review & Payment',
     'Results'
   ];
 
@@ -342,16 +342,14 @@ export default function GradeChecker() {
                   <h4 className="text-sm font-medium text-[#2d3192] mb-1">
                     {currentStep === 0 && "Upload your results or enter grades manually"}
                     {currentStep === 1 && (formData.background.fullName ? `Hello ${formData.background.fullName.split(' ')[0]}, kindly share more info below` : "Enter your background information")}
-                    {currentStep === 2 && "Review your information before payment"}
-                    {currentStep === 3 && "Complete payment for qualification check"}
-                    {currentStep === 4 && "View your programme qualification results"}
+                    {currentStep === 2 && "Review your details and complete payment"}
+                    {currentStep === 3 && "View your programme qualification results"}
                   </h4>
                   <p className="text-xs text-[#2d3192]/80">
                     {currentStep === 0 && "Upload a photo or PDF of your results for automatic processing, or enter grades manually."}
                     {currentStep === 1 && "This helps us determine your eligibility for programmes in your selected school."}
-                    {currentStep === 2 && "Review your information before proceeding to payment."}
-                    {currentStep === 3 && "Complete payment to access your qualification results."}
-                    {currentStep === 4 && "See which programmes you're qualified for based on your WASSCE grades."}
+                    {currentStep === 2 && "Review your information and complete secure payment to get your results."}
+                    {currentStep === 3 && "See which programmes you're qualified for based on your WASSCE grades."}
                   </p>
                 </div>
               </div>
@@ -379,204 +377,12 @@ export default function GradeChecker() {
             {currentStep === 2 && (
               <ConfirmationForm
                 formData={formData}
+                onPaymentComplete={() => setPaymentCompleted(true)}
+                paymentCompleted={paymentCompleted}
               />
             )}
 
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Payment</h2>
-                  <p className="text-gray-600 mt-1">Complete your payment to generate qualification results</p>
-                </div>
-
-                <div className="space-y-6">
-                  {!paymentProcessing ? (
-                    <div className="bg-gradient-to-r from-green-50 to-blue-50 p-8 rounded-xl border border-green-200">
-                      <div className="text-center">
-                        <div className="mb-6">
-                          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                          <h3 className="text-2xl font-bold text-gray-900 mb-2">Ready to Pay</h3>
-                          <p className="text-gray-600 mb-6">Click the button below to proceed to secure payment</p>
-                        </div>
-
-                        <div className="bg-white p-6 rounded-lg border border-gray-200 inline-block mb-6">
-                          <div className="text-3xl font-bold text-gray-900 mb-1">
-                            GHS 12
-                          </div>
-                          <div className="text-sm text-gray-600">Programme Qualification Check</div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            setPaymentProcessing(true);
-                            try {
-                              // Convert grade strings to numbers (A1=1, B2=2, etc.)
-                              const gradeToNumber = (grade: string): number => {
-                                const gradeMap: Record<string, number> = {
-                                  'A1': 1, 'B2': 2, 'B3': 3, 'C4': 4, 'C5': 5, 'C6': 6, 'D7': 7, 'E8': 8, 'F9': 9
-                                };
-                                return gradeMap[grade] || 0;
-                              };
-    
-                              // Create subject name to ID mapping
-                              const subjectNameToId = (subjectName: string): number => {
-                                // Find the subject by name in our loaded subjects
-                                const subject = [...coreSubjects, ...electiveSubjects].find(s => s.name === subjectName);
-                                return subject?.id || 1; // Default to 1 if not found
-                              };
-    
-                              // Map certificate type to ID
-                              const getCertificateTypeId = (certType: string): number => {
-                                const certMap: Record<string, number> = {
-                                  'WASSCE': 1,
-                                  'SSSCE': 2,
-                                  'GBCE': 3
-                                };
-                                return certMap[certType] || 1;
-                              };
-    
-                              // Map program level to ID
-                              const getProgramTypeId = (programLevel: string): number => {
-                                const programMap: Record<string, number> = {
-                                  'Certificate': 1,
-                                  'Diploma': 2,
-                                  'Degree': 3
-                                };
-                                return programMap[programLevel] || 3;
-                              };
-    
-                              // Map course to ID (simplified - would need proper course lookup)
-                              const getCourseId = (_courseName: string): number => {
-                                // This would need to be implemented with a course lookup
-                                // For now, return a default
-                                return 1;
-                              };
-    
-                              // Create subject ID to name mapping for core subjects
-                              const subjectIdToName = (subjectId: string): string => {
-                                const subject = coreSubjects.find(s => s.id.toString() === subjectId);
-                                if (subject) {
-                                  // Convert common subject names to expected format
-                                  const name = subject.name.toLowerCase();
-                                  // Map common variations to expected names
-                                  const nameMap: Record<string, string> = {
-                                    'mathematics': 'math',
-                                    'english language': 'english',
-                                    'english': 'english',
-                                    'science': 'science',
-                                    'social studies': 'social',
-                                    'social': 'social'
-                                  };
-                                  return nameMap[name] || name;
-                                }
-                                return subjectId;
-                              };
-    
-                              // Prepare the grade check request data in the format the API expects
-                              const gradeCheckRequest: GradeCheckRequest = {
-                                code: `CHK${Date.now().toString().slice(-6)}`, // Generate a check code
-                                school_id: formData.background.school?.id || 1,
-                                cert_type_id: getCertificateTypeId(formData.background.certificateType),
-                                programme_type_id: getProgramTypeId(formData.background.programmeLevel),
-                                country_id: formData.background.country?.id || 1,
-                                course_id: getCourseId(formData.background.courseOffered),
-                                results: {
-                                  core: Object.entries(formData.coreSubjects).reduce((acc, [subjectId, grade]) => {
-                                    // Use subject name as key instead of ID
-                                    const subjectName = subjectIdToName(subjectId);
-                                    acc[subjectName] = gradeToNumber(grade);
-                                    return acc;
-                                  }, {} as Record<string, number>),
-                                  electives: Object.entries(formData.electiveGrades).map(([subjectName, grade]) => ({
-                                    subject_id: subjectNameToId(subjectName),
-                                    grade: gradeToNumber(grade)
-                                  }))
-                                }
-                              };
-    
-                              console.log('Grade Check Request:', gradeCheckRequest);
-                              console.log('Core subjects mapping:', Object.entries(formData.coreSubjects).map(([id, grade]) => ({
-                                id,
-                                name: subjectIdToName(id),
-                                grade
-                              })));
-    
-                              // Call the grade check API
-                              const response = await completeGradeCheck(gradeCheckRequest);
-    
-                              console.log('Grade Check Response:', response);
-    
-                              if (response.payment.payment_link) {
-                                // Redirect to payment gateway
-                                window.location.href = response.payment.payment_link;
-                              } else {
-                                throw new Error('Failed to get payment link');
-                              }
-                            } catch (error) {
-                              console.error('Payment initiation failed:', error);
-                              setPaymentProcessing(false);
-                              // In a real app, you'd show an error message to the user
-                              const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-                              alert(`Failed to initiate payment: ${errorMessage}`);
-                            }
-                          }}
-                          className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl"
-                        >
-                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                          </svg>
-                          Proceed to Payment Gateway
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-white p-8 rounded-xl border border-gray-200">
-                      <div className="text-center">
-                        <div className="mb-6">
-                          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                            <svg className="animate-spin w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                          </div>
-                          <h3 className="text-xl font-bold text-gray-900 mb-2">Processing Payment</h3>
-                          <p className="text-gray-600 mb-6">Please wait while we redirect you to our secure payment gateway...</p>
-                        </div>
-
-                        <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                          <div className="flex items-center justify-between mb-4">
-                            <span className="text-sm font-medium text-gray-700">Amount:</span>
-                            <span className="text-lg font-bold text-gray-900">GHS 12.00</span>
-                          </div>
-                          <div className="flex items-center justify-between mb-4">
-                            <span className="text-sm font-medium text-gray-700">Service:</span>
-                            <span className="text-sm text-gray-600">Programme Qualification Check</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">Status:</span>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              Processing...
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mt-6 text-center">
-                          <p className="text-xs text-gray-500">
-                            You will be redirected to our secure payment partner
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {currentStep === 4 && <ResultsPage />}
+            {currentStep === 3 && <ResultsPage />}
 
             {/* Auto-save indicator */}
             {saved && (
@@ -614,9 +420,14 @@ export default function GradeChecker() {
                     <button
                       type="button"
                       onClick={next}
-                      className="flex items-center px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      disabled={currentStep === 2 && !paymentCompleted}
+                      className={`flex items-center px-8 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg transform hover:scale-105 ${
+                        currentStep === 2 && !paymentCompleted
+                          ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
+                          : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
+                      }`}
                     >
-                      {currentStep === steps.length - 3 ? 'Review' : currentStep === steps.length - 2 ? 'Pay Now' : 'Continue'}
+                      {currentStep === 2 ? 'View Cut-off Points' : 'Continue'}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </button>
                   ) : (
