@@ -345,7 +345,6 @@ export async function matchSubjectsWithAI(
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
   if (!GEMINI_API_KEY) {
-    console.warn('No Gemini API key, falling back to basic matching');
     return extractedSubjects.map(subject => ({
       ...subject,
       matchedSubject: findBestSubjectMatch(subject.name, apiSubjects)
@@ -360,10 +359,15 @@ export async function matchSubjectsWithAI(
     const prompt = `I have extracted subjects and grades from a WASSCE results document. I need to match each extracted subject to the correct subject from our API database.
 
 IMPORTANT: These subjects MUST be treated as CORE subjects (type=1):
-- Mathematics (or Math)
+- Mathematics (or Math) - BUT NOT "Mathematics (Elect)" or "Elective Mathematics"
 - English (or English Language)
 - Science (or Integrated Science)
 - Social Studies (or Social)
+
+IMPORTANT: These subjects MUST be treated as ELECTIVE subjects (type=2):
+- Mathematics (Elect) or Elective Mathematics
+- Any subject with "(Elect)" in the name
+- All other subjects not listed as core
 
 EXTRACTED SUBJECTS:
 ${extractedList}
@@ -434,12 +438,14 @@ Return ONLY the JSON array, no explanations.`;
     }
 
     const aiMatches = JSON.parse(jsonMatch[0]);
-    console.log('🤖 AI subject matching results:', aiMatches);
 
     // Apply AI matches to extracted subjects
     return extractedSubjects.map(extracted => {
       // PRIORITY 1: Manual core subject override (Mathematics, English, Science, Social Studies)
-      const manualCoreMatch = Object.keys(CORE_SUBJECT_MAPPING).find(key =>
+      // EXCLUDE elective subjects (containing "elect" or "(elect)")
+      const isElectiveSubject = extracted.name.toLowerCase().includes('elect') || extracted.name.toLowerCase().includes('(elect)');
+      
+      const manualCoreMatch = !isElectiveSubject && Object.keys(CORE_SUBJECT_MAPPING).find(key =>
         extracted.name.toLowerCase().includes(key.toLowerCase()) ||
         key.toLowerCase().includes(extracted.name.toLowerCase()) ||
         extracted.name.toLowerCase().includes('core') // If subject name contains "core"
@@ -473,7 +479,6 @@ Return ONLY the JSON array, no explanations.`;
     });
 
   } catch (error) {
-    console.warn('AI subject matching failed, falling back to basic matching:', error);
     // Fallback to basic matching
     return extractedSubjects.map(subject => ({
       ...subject,
@@ -482,29 +487,88 @@ Return ONLY the JSON array, no explanations.`;
   }
 }
 
-// Enhanced subject matching with type priority (Core subjects prioritized for common names)
+// Enhanced subject matching with type priority (Elective subjects prioritized for (Elect) variants)
 export function findBestSubjectMatch(subjectName: string, apiSubjects: Array<{ id: number; name: string; subject_code: string; type: number }>) {
   const normalizedSubject = subjectName.toLowerCase().trim();
+  
+  // Check if this is an elective subject (contains "elect" or "(elect)")
+  const isElectiveSubject = normalizedSubject.includes('elect') || normalizedSubject.includes('(elect)');
+  
+  // Filter subjects by type based on whether it's elective
+  const relevantSubjects = isElectiveSubject 
+    ? apiSubjects.filter(s => s.type === 2) // Only elective subjects
+    : apiSubjects; // All subjects for non-elective
 
-  // Exact match first
-  const exactMatch = apiSubjects.find(s => s.name.toLowerCase() === normalizedSubject);
-  if (exactMatch) return exactMatch;
+  // Exact match first - try subject_code then name (within relevant subjects)
+  const exactCodeMatch = relevantSubjects.find(s => s.subject_code.toLowerCase() === normalizedSubject);
+  if (exactCodeMatch) return exactCodeMatch;
+  
+  const exactNameMatch = relevantSubjects.find(s => s.name.toLowerCase() === normalizedSubject);
+  if (exactNameMatch) return exactNameMatch;
 
-  // Contains match
-  const containsMatch = apiSubjects.find(s =>
+  // Contains match - try subject_code then name (within relevant subjects)
+  const containsCodeMatch = relevantSubjects.find(s =>
+    s.subject_code.toLowerCase().includes(normalizedSubject) || normalizedSubject.includes(s.subject_code.toLowerCase())
+  );
+  if (containsCodeMatch) return containsCodeMatch;
+  
+  const containsNameMatch = relevantSubjects.find(s =>
     s.name.toLowerCase().includes(normalizedSubject) || normalizedSubject.includes(s.name.toLowerCase())
   );
-  if (containsMatch) return containsMatch;
+  if (containsNameMatch) return containsNameMatch;
 
-  // Word-based matching
+  // Special handling for Mathematics (Elect) -> Elective Maths (using subject_code)
+  if (normalizedSubject.includes('math') && normalizedSubject.includes('elect')) {
+    // First try to match by subject_code for Elective Maths
+    const electiveMathMatch = relevantSubjects.find(s => 
+      s.subject_code.toLowerCase().includes('elective') && s.subject_code.toLowerCase().includes('math')
+    );
+    if (electiveMathMatch) return electiveMathMatch;
+    
+    // Fallback to name matching if subject_code doesn't work
+    const electiveMathNameMatch = relevantSubjects.find(s => 
+      s.name.toLowerCase().includes('elective') && s.name.toLowerCase().includes('math')
+    );
+    if (electiveMathNameMatch) return electiveMathNameMatch;
+  }
+
+  // Word-based matching - try subject_code then name (within relevant subjects)
   const subjectWords = normalizedSubject.split(/\s+/);
   for (const word of subjectWords) {
     if (word.length > 3) {
-      const wordMatch = apiSubjects.find(s =>
-        s.name.toLowerCase().includes(word) || s.subject_code.toLowerCase().includes(word)
+      // Try subject_code first
+      const codeWordMatch = relevantSubjects.find(s =>
+        s.subject_code.toLowerCase().includes(word)
       );
-      if (wordMatch) return wordMatch;
+      if (codeWordMatch) return codeWordMatch;
+      
+      // Then try name
+      const nameWordMatch = relevantSubjects.find(s =>
+        s.name.toLowerCase().includes(word)
+      );
+      if (nameWordMatch) return nameWordMatch;
     }
+  }
+
+  // Fallback: try all subjects if no match found in relevant subjects
+  if (isElectiveSubject) {
+    // Try exact match in all subjects - subject_code then name
+    const fallbackExactCodeMatch = apiSubjects.find(s => s.subject_code.toLowerCase() === normalizedSubject);
+    if (fallbackExactCodeMatch) return fallbackExactCodeMatch;
+    
+    const fallbackExactNameMatch = apiSubjects.find(s => s.name.toLowerCase() === normalizedSubject);
+    if (fallbackExactNameMatch) return fallbackExactNameMatch;
+    
+    // Try contains match in all subjects - subject_code then name
+    const fallbackContainsCodeMatch = apiSubjects.find(s =>
+      s.subject_code.toLowerCase().includes(normalizedSubject) || normalizedSubject.includes(s.subject_code.toLowerCase())
+    );
+    if (fallbackContainsCodeMatch) return fallbackContainsCodeMatch;
+    
+    const fallbackContainsNameMatch = apiSubjects.find(s =>
+      s.name.toLowerCase().includes(normalizedSubject) || normalizedSubject.includes(s.name.toLowerCase())
+    );
+    if (fallbackContainsNameMatch) return fallbackContainsNameMatch;
   }
 
   return undefined;
@@ -512,7 +576,6 @@ export function findBestSubjectMatch(subjectName: string, apiSubjects: Array<{ i
 
 // Simple console log test for API endpoints
 export async function testAPIs() {
-  console.log('🧪 Testing Subject API Endpoints...');
 
   try {
     // Test core subjects (type=1)
@@ -520,16 +583,13 @@ export async function testAPIs() {
       headers: { Authorization: `Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiNDI4OGZhYjE1Zjc2NGExZmU2ZTFiZGU0OTVlMDBiNDdlYmZiYjRkNTMzN2E4NGUwMTFhODc2NTgzZDM0N2NhNTI3MzMzOWNlNTc5Y2NkZjQiLCJpYXQiOjE3NTE5OTU1MjIuMjIwOTUxLCJuYmYiOjE3NTE5OTU1MjIuMjIwOTUzLCJleHAiOjE3ODM1MzE1MjIuMjA5MTczLCJzdWIiOiIyIiwic2NvcGVzIjpbXX0.mCHujZxR8eGFG_bdVP5YTDoL4dnGYEwsmu2RtmQmn-N7F06RtGBLxWxw9s5JzZVyQCZ8UV-AriNRIoRqhtfeZJfsvA0loN5ZrzhWErApZ5x08bNaNUQOVSWB-hnhQd8TvCq7pZF4QPNtr7BUsM3w-obabdESUagx15IApsZ2AHBCWafx4CvSOneugeo110QIFshDzudUZbXg0k3d1kNoRmCR_FCXF9w_Tb9nLWZDABL0ehiZlXeduF7S2AW0Y1gP85zcMOvyyTCo2dBTX73yrC9IUuhOEYFswv8PynKrydIRh5dtNTzIOlsYU_pb58FPDqO64tjigRbRaa_abgXAoZzne_InDmsAir1Wymuyhyyk6h8IvEMiI4j4_pMora-iA4bGZStS7zHacHBr50LQhq5OJdPUWDfv-1RU48WlT-KTbkrPqOLW7LiG9C3Sw2F2PbNTvGw-fG9BL0avfY6aEKDq9jJ_fxKsGehUYz8OjclthJMGGvmdLmGmIu1uGJ3keGYznnBZyV6vrCk8ZDKCHbJbV2pnxGbZOLJhUUD7imCXoiVhGL1h35z_jYtxgwGER7uYKHkjbXPhhNPQaDtL5XCcTUulHNUh6N951u-aLb1uFAwGoMpTKZ66M2_Hy5EG-oieLC0FkZpxmHsHBsCLOXioE3eP9-IDeRgfwPfQvrw` }
     });
     const coreData = await coreResponse.json();
-    console.log('🎯 Core subjects (type=1):', coreData);
 
     // Test elective subjects (type=2)
     const electiveResponse = await fetch('https://cutoffpoint.com.gh/api/v1/subjects/by-type?type=2', {
       headers: { Authorization: `Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiNDI4OGZhYjE1Zjc2NGExZmU2ZTFiZGU0OTVlMDBiNDdlYmZiYjRkNTMzN2E4NGUwMTFhODc2NTgzZDM0N2NhNTI3MzMzOWNlNTc5Y2NkZjQiLCJpYXQiOjE3NTE5OTU1MjIuMjIwOTUxLCJuYmYiOjE3NTE5OTU1MjIuMjIwOTUzLCJleHAiOjE3ODM1MzE1MjIuMjA5MTczLCJzdWIiOiIyIiwic2NvcGVzIjpbXX0.mCHujZxR8eGFG_bdVP5YTDoL4dnGYEwsmu2RtmQmn-N7F06RtGBLxWxw9s5JzZVyQCZ8UV-AriNRIoRqhtfeZJfsvA0loN5ZrzhWErApZ5x08bNaNUQOVSWB-hnhQd8TvCq7pZF4QPNtr7BUsM3w-obabdESUagx15IApsZ2AHBCWafx4CvSOneugeo110QIFshDzudUZbXg0k3d1kNoRmCR_FCXF9w_Tb9nLWZDABL0ehiZlXeduF7S2AW0Y1gP85zcMOvyyTCo2dBTX73yrC9IUuhOEYFswv8PynKrydIRh5dtNTzIOlsYU_pb58FPDqO64tjigRbRaa_abgXAoZzne_InDmsAir1Wymuyhyyk6h8IvEMiI4j4_pMora-iA4bGZStS7zHacHBr50LQhq5OJdPUWDfv-1RU48WlT-KTbkrPqOLW7LiG9C3Sw2F2PbNTvGw-fG9BL0avfY6aEKDq9jJ_fxKsGehUYz8OjclthJMGGvmdLmGmIu1uGJ3keGYznnBZyV6vrCk8ZDKCHbJbV2pnxGbZOLJhUUD7imCXoiVhGL1h35z_jYtxgwGER7uYKHkjbXPhhNPQaDtL5XCcTUulHNUh6N951u-aLb1uFAwGoMpTKZ66M2_Hy5EG-oieLC0FkZpxmHsHBsCLOXioE3eP9-IDeRgfwPfQvrw` }
     });
     const electiveData = await electiveResponse.json();
-    console.log('📚 Elective subjects (type=2):', electiveData);
 
   } catch (error) {
-    console.error('❌ API Test Error:', error);
   }
 }

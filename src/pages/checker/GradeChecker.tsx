@@ -9,7 +9,7 @@ import { CheckerProvider } from './CheckerContext';
 import MainLayout from '../../components/layout/MainLayout';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import { fetchCountries, fetchSchoolsByCountry, fetchSubjectsByType, fetchGrades, Subject, Grade, completeGradeCheck, GradeCheckRequest } from '../../services/api/universityApi';
+import { fetchCountries, fetchSchoolsByCountry, fetchSubjectsByType, fetchGrades, Subject, Grade } from '../../services/api/universityApi';
 import { FormData } from './types';
 
 const INITIAL_DATA: FormData = {
@@ -40,7 +40,6 @@ export default function GradeChecker() {
   const [availableGrades, setAvailableGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const lastSavedDataRef = useRef<string>('');
 
@@ -396,50 +395,48 @@ export default function GradeChecker() {
 
             {/* Navigation Buttons - Ghana Inspired - Hide on first step since GradeInputStep has its own buttons */}
             {currentStep > 0 && (
-              <div className="mt-8 flex justify-between items-center">
+              <div className="mt-6 sm:mt-8 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={prev}
                   disabled={currentStep === 0}
-                  className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  className={`flex items-center justify-center px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 ${
                     currentStep === 0
                       ? 'invisible'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-2 text-sm sm:text-base">Back</span>
                 </button>
 
-                <div className="flex items-center space-x-4">
-                  <div className="text-sm text-gray-500">
-                    Step {currentStep + 1} of {steps.length}
-                  </div>
-
-                  {currentStep < steps.length - 1 ? (
-                    <button
-                      type="button"
-                      onClick={next}
-                      disabled={currentStep === 2 && !paymentCompleted}
-                      className={`flex items-center px-8 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg transform hover:scale-105 ${
-                        currentStep === 2 && !paymentCompleted
-                          ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
-                          : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
-                      }`}
-                    >
-                      {currentStep === 2 ? 'View Cut-off Points' : 'Continue'}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={resetForm}
-                      className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all duration-200"
-                    >
-                      Start New Check
-                    </button>
-                  )}
+                <div className="text-sm text-gray-500 text-center px-2">
+                  Step {currentStep + 1} of {steps.length}
                 </div>
+
+                {currentStep < steps.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={next}
+                    disabled={currentStep === 2 && !paymentCompleted}
+                    className={`flex items-center justify-center px-3 sm:px-8 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-lg transform hover:scale-105 ${
+                      currentStep === 2 && !paymentCompleted
+                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
+                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
+                    }`}
+                  >
+                    <span className="text-xs sm:text-sm">{currentStep === 2 ? 'View Cut-off Points' : 'Continue'}</span>
+                    <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="flex items-center justify-center px-3 sm:px-6 py-2 sm:py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all duration-200"
+                  >
+                    <span className="text-xs sm:text-sm">Start New Check</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -448,3 +445,4 @@ export default function GradeChecker() {
     </MainLayout>
   );
 }
+

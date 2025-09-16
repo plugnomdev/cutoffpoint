@@ -122,7 +122,7 @@ function SearchableSelect({
         onClick={() => !disabled && handleToggle()}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        className={`w-full p-2 text-left border rounded-lg bg-white transition-all duration-200 flex items-center justify-between text-sm ${
+        className={`w-full p-2 sm:p-3 text-left border rounded-lg bg-white transition-all duration-200 flex items-center justify-between text-sm ${
           disabled
             ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
             : 'hover:border-green-400 focus:border-green-500 focus:ring-2 focus:ring-green-200'
@@ -188,7 +188,7 @@ function SearchableSelect({
                       index === highlightedIndex ? 'bg-green-50' : ''
                     } ${option.value === value ? 'bg-green-100 text-green-900' : 'text-gray-900'}`}
                   >
-                    <span className="truncate text-sm">{option.label}</span>
+                    <span className="truncate text-xs sm:text-sm">{option.label}</span>
                     {option.value === value && (
                       <div className="ml-auto w-2 h-2 bg-green-600 rounded-full"></div>
                     )}
@@ -321,21 +321,21 @@ export default function CombinedSubjectsForm({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="text-center">
-        <h2 className="text-lg font-bold text-gray-900">Subject Grades</h2>
-        <p className="text-gray-600 mt-1 text-sm">Select your core subjects and electives with grades</p>
+        <h2 className="text-base sm:text-lg font-bold text-gray-900">Subject Grades</h2>
+        <p className="text-gray-600 mt-1 text-xs sm:text-sm">Select your core subjects and electives with grades</p>
       </div>
 
       {/* Full-width stacked layout with collapsible sections */}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Core Subjects Section */}
         <div className="bg-white border border-gray-200 rounded-lg">
           <button
             onClick={() => setCoreExpanded(!coreExpanded)}
-            className="w-full p-3 bg-blue-50 border-b border-gray-200 hover:bg-blue-100 transition-colors duration-200 flex items-center justify-between"
+            className="w-full p-2 sm:p-3 bg-blue-50 border-b border-gray-200 hover:bg-blue-100 transition-colors duration-200 flex items-center justify-between"
           >
-            <h3 className="text-sm font-semibold text-blue-900">Core Subjects</h3>
+            <h3 className="text-xs sm:text-sm font-semibold text-blue-900">Core Subjects</h3>
             {coreExpanded ? (
               <ChevronUp className="w-5 h-5 text-blue-600" />
             ) : (
@@ -348,9 +348,9 @@ export default function CombinedSubjectsForm({
           }`}>
             <div className="p-4 space-y-4">
               {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                  <span className="ml-3 text-gray-600">Loading core subjects...</span>
+                <div className="flex items-center justify-center py-6 sm:py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-t-2 border-b-2 border-blue-500"></div>
+                  <span className="ml-2 sm:ml-3 text-xs sm:text-sm text-gray-600">Loading core subjects...</span>
                 </div>
               ) : (
                 fetchedCoreSubjects.map((subject) => {
@@ -358,8 +358,8 @@ export default function CombinedSubjectsForm({
 
                   return (
                     <div key={subject.id} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <span className="font-medium text-gray-900 text-sm">{subject.name}</span>
+                      <div className="flex items-center flex-1 min-w-0">
+                        <span className="font-medium text-gray-900 text-xs sm:text-sm truncate">{subject.name}</span>
                       </div>
                       <select
                         value={coreGrades[key] || ''}
@@ -370,7 +370,7 @@ export default function CombinedSubjectsForm({
                           };
                           setCoreGrades(newGrades);
                         }}
-                        className="w-24 p-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-20 sm:w-24 p-1.5 sm:p-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 flex-shrink-0 ml-2"
                       >
                         <option value="">Grade</option>
                         {availableGrades.map((grade) => (
@@ -391,9 +391,9 @@ export default function CombinedSubjectsForm({
         <div className="bg-white border border-gray-200 rounded-lg">
           <button
             onClick={() => setElectivesExpanded(!electivesExpanded)}
-            className="w-full p-3 bg-green-50 border-b border-gray-200 hover:bg-green-100 transition-colors duration-200 flex items-center justify-between"
+            className="w-full p-2 sm:p-3 bg-green-50 border-b border-gray-200 hover:bg-green-100 transition-colors duration-200 flex items-center justify-between"
           >
-            <h3 className="text-sm font-semibold text-green-900">Elective Subjects</h3>
+            <h3 className="text-xs sm:text-sm font-semibold text-green-900">Elective Subjects</h3>
             {electivesExpanded ? (
               <ChevronUp className="w-5 h-5 text-green-600" />
             ) : (
@@ -406,8 +406,8 @@ export default function CombinedSubjectsForm({
           }`}>
             <div className="p-4 space-y-4">
               {[0, 1, 2, 3].map((index) => (
-                <div key={index} className="flex items-center space-x-3">
-                  <div className="flex-1">
+                <div key={index} className="flex items-center space-x-2 sm:space-x-3">
+                  <div className="flex-1 min-w-0">
                     <SearchableSelect
                       options={fetchedElectiveSubjects.map((subject) => ({
                         value: subject.name,
@@ -418,12 +418,12 @@ export default function CombinedSubjectsForm({
                       placeholder="Select elective subject..."
                     />
                   </div>
-                  <div className="w-24 flex-shrink-0">
+                  <div className="w-20 sm:w-24 flex-shrink-0">
                     <select
                       value={electiveSelections[index] ? electiveGrades[electiveSelections[index]] || '' : ''}
                       onChange={(e) => updateElectiveGrade(electiveSelections[index], e.target.value)}
                       disabled={!electiveSelections[index]}
-                      className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full p-1.5 sm:p-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
                       <option value="">Grade</option>
                       {availableGrades.map((grade) => (

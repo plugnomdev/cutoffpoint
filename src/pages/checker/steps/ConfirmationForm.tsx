@@ -165,32 +165,32 @@ export default function ConfirmationForm({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Confirm Your Details</h2>
-        <p className="text-gray-600 mt-1">Review your information before proceeding to payment</p>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Confirm Your Details</h2>
+        <p className="text-gray-600 mt-1 text-sm sm:text-base">Review your information before proceeding to payment</p>
       </div>
 
       {/* Background Information */}
       <div className="border rounded-lg divide-y">
-        <div className="p-4">
-          <h3 className="font-medium text-gray-900 mb-4">Background Information</h3>
-          <dl className="grid grid-cols-2 gap-4">
+        <div className="p-3 sm:p-4">
+          <h3 className="font-medium text-gray-900 mb-3 sm:mb-4 text-sm sm:text-base">Background Information</h3>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <dt className="text-sm text-gray-500">Course Offered</dt>
-              <dd className="text-sm font-medium text-gray-900">{formData.background.courseOffered || 'Not provided'}</dd>
+              <dt className="text-xs sm:text-sm text-gray-500">Course Offered</dt>
+              <dd className="text-xs sm:text-sm font-medium text-gray-900">{formData.background.courseOffered || 'Not provided'}</dd>
             </div>
             <div>
-              <dt className="text-sm text-gray-500">Programme Level</dt>
-              <dd className="text-sm font-medium text-gray-900">{formData.background.programmeLevel}</dd>
+              <dt className="text-xs sm:text-sm text-gray-500">Programme Level</dt>
+              <dd className="text-xs sm:text-sm font-medium text-gray-900">{formData.background.programmeLevel}</dd>
             </div>
             <div>
-              <dt className="text-sm text-gray-500">Full Name</dt>
-              <dd className="text-sm font-medium text-gray-900">{formData.background.fullName || 'Not provided'}</dd>
+              <dt className="text-xs sm:text-sm text-gray-500">Full Name</dt>
+              <dd className="text-xs sm:text-sm font-medium text-gray-900">{formData.background.fullName || 'Not provided'}</dd>
             </div>
             <div>
-              <dt className="text-sm text-gray-500">Phone Number</dt>
-              <dd className="text-sm font-medium text-gray-900">{formData.background.phoneNumber || 'Not provided'}</dd>
+              <dt className="text-xs sm:text-sm text-gray-500">Phone Number</dt>
+              <dd className="text-xs sm:text-sm font-medium text-gray-900">{formData.background.phoneNumber || 'Not provided'}</dd>
             </div>
           </dl>
         </div>
@@ -199,9 +199,9 @@ export default function ConfirmationForm({
         <div className="border-t">
           <button
             onClick={() => setGradesExpanded(!gradesExpanded)}
-            className="w-full p-4 text-left hover:bg-gray-50 transition-colors duration-200 flex items-center justify-between"
+            className="w-full p-3 sm:p-4 text-left hover:bg-gray-50 transition-colors duration-200 flex items-center justify-between"
           >
-            <h3 className="font-medium text-gray-900">Subject Grades</h3>
+            <h3 className="font-medium text-gray-900 text-sm sm:text-base">Subject Grades</h3>
             {gradesExpanded ? (
               <ChevronUp className="w-5 h-5 text-gray-500" />
             ) : (
@@ -213,19 +213,19 @@ export default function ConfirmationForm({
             gradesExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
           }`}>
             {/* Core Subjects */}
-            <div className="p-4 border-t">
-              <h4 className="font-medium text-gray-900 mb-3 text-sm">Core Subjects</h4>
-              <div className="space-y-3">
+            <div className="p-3 sm:p-4 border-t">
+              <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm">Core Subjects</h4>
+              <div className="space-y-2 sm:space-y-3">
                 {Object.entries(formData.coreSubjects).map(([subjectId, grade]) => {
                   const id = Number(subjectId);
                   const subjectName = getSubjectName(id);
                   console.log('Core subject:', { subjectId, id, subjectName, grade });
                   return (
                     <div key={subjectId} className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
                         {subjectName}
                       </span>
-                      <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                      <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded flex-shrink-0 ml-2">
                         {grade || 'Not selected'}
                       </span>
                     </div>
@@ -244,16 +244,16 @@ export default function ConfirmationForm({
               });
               return formData.selectedElectives.length > 0;
             })() && (
-              <div className="p-4 border-t">
-                <h4 className="font-medium text-gray-900 mb-3 text-sm">Elective Subjects</h4>
-                <div className="space-y-3">
+              <div className="p-3 sm:p-4 border-t">
+                <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm">Elective Subjects</h4>
+                <div className="space-y-2 sm:space-y-3">
                   {formData.selectedElectives.map((subject) => {
                     const displayName = getElectiveSubjectName(subject);
                     console.log('📋 Displaying elective:', { subject, displayName, grade: formData.electiveGrades[subject] });
                     return (
                       <div key={subject} className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">{displayName}</span>
-                        <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                        <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">{displayName}</span>
+                        <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded flex-shrink-0 ml-2">
                           {formData.electiveGrades[subject] || 'Not graded'}
                         </span>
                       </div>
@@ -268,33 +268,33 @@ export default function ConfirmationForm({
 
       {/* Payment Section */}
       {localPaymentCompleted ? (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 sm:p-6 rounded-xl border border-green-200">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full mb-3 sm:mb-4">
+              <svg className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Payment Successful!</h3>
-            <p className="text-gray-600 text-sm mb-4">Your cut-off points are ready to view</p>
-            <div className="bg-white p-3 rounded-lg border border-gray-200 inline-block">
-              <div className="text-lg font-bold text-green-600">✓ Paid</div>
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Payment Successful!</h3>
+            <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">Your cut-off points are ready to view</p>
+            <div className="bg-white p-2 sm:p-3 rounded-lg border border-gray-200 inline-block">
+              <div className="text-base sm:text-lg font-bold text-green-600">✓ Paid</div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-xl border border-green-200">
+        <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 sm:p-6 rounded-xl border border-green-200">
           <div className="text-center">
-            <div className="mb-4">
-              <h3 className="text-xl font-bold text-gray-900 mb-1">Complete Payment</h3>
-              <p className="text-gray-600 text-sm">Get instant access to programme cut-off points</p>
+            <div className="mb-3 sm:mb-4">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">Complete Payment</h3>
+              <p className="text-gray-600 text-xs sm:text-sm">Get instant access to programme cut-off points</p>
             </div>
 
-            <div className="bg-white p-4 rounded-lg border border-gray-200 inline-block mb-4 shadow-sm">
-              <div className="text-3xl font-bold text-gray-900 mb-1">
+            <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 inline-block mb-3 sm:mb-4 shadow-sm">
+              <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                 GHS 12
               </div>
-              <div className="text-sm text-gray-600">Programme Cut-off Checker</div>
+              <div className="text-xs sm:text-sm text-gray-600">Programme Cut-off Checker</div>
             </div>
 
             {/* Paystack Payment Image */}
@@ -309,7 +309,7 @@ export default function ConfirmationForm({
             {!paymentProcessing ? (
               <button
                 onClick={handlePayment}
-                className="inline-flex items-center px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md hover:shadow-lg"
+                className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md hover:shadow-lg text-sm sm:text-base"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -317,14 +317,14 @@ export default function ConfirmationForm({
                 Make Payment
               </button>
             ) : (
-              <div className="bg-white p-4 rounded-lg border border-gray-200 inline-block">
+              <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 inline-block">
                 <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full mb-2">
-                    <svg className="animate-spin w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full mb-2">
+                    <svg className="animate-spin w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                   </div>
-                  <h4 className="text-base font-semibold text-gray-900 mb-1">Processing...</h4>
+                  <h4 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">Processing...</h4>
                   <p className="text-gray-600 text-xs">Redirecting to payment gateway</p>
                 </div>
               </div>

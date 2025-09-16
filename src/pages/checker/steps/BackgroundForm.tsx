@@ -338,7 +338,7 @@ export default function BackgroundForm({
         };
 
         // Check if extracted course matches any variation
-        for (const [standardName, variations] of Object.entries(courseMappings)) {
+        for (const [_, variations] of Object.entries(courseMappings)) {
           if (variations.some(v => extractedName.includes(v)) &&
               variations.some(v => courseName.includes(v))) {
             return true;
@@ -372,27 +372,11 @@ export default function BackgroundForm({
   }, [extractedName, extractedCertificateType, extractedCourseOffered, detectedCountry, countries, courses, fullName, certificateType, courseOffered, country]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
 
-      {/* AI-Extracted Info Summary */}
-      {(extractedName || extractedCertificateType) && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-4">
-              {extractedCertificateType && (
-                <>
-                  <span className="font-medium text-green-800">Certificate Type:</span>
-                  <span className="text-green-900">{certificateType || 'WASSCE'}</span>
-                </>
-              )}
-            </div>
-            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">AI Detected</span>
-          </div>
-        </div>
-      )}
 
       {/* Country Selection */}
-      <div className="space-y-2">
+      <div className="space-y-1 sm:space-y-2">
         <label className="flex items-center text-xs font-medium text-gray-700">
           <Globe className="w-4 h-4 mr-2 text-blue-600" />
           Which country do you want to school in?
@@ -426,7 +410,7 @@ export default function BackgroundForm({
       </div>
 
       {/* Course Offered - Always visible, right after country */}
-      <div className="space-y-2">
+      <div className="space-y-1 sm:space-y-2">
         <label className="flex items-center text-xs font-medium text-gray-700">
           <BookOpen className="w-4 h-4 mr-2 text-indigo-600" />
           <span className="text-xs">Which course did you study in SHS?</span>
@@ -455,7 +439,7 @@ export default function BackgroundForm({
       </div>
 
       {/* School Selection */}
-      <div className="space-y-2">
+      <div className="space-y-1 sm:space-y-2">
         <label className="flex items-center text-xs font-medium text-gray-700">
           <Building2 className="w-4 h-4 mr-2 text-green-600" />
           <span className="text-xs">{country ? `Which school in ${country.name} do you want to apply to?` : 'Choose School'}</span>
@@ -493,7 +477,7 @@ export default function BackgroundForm({
           <Award className="w-4 h-4 mr-2 text-purple-600" />
           <span className="text-xs">What programme level do you want to pursue?</span>
         </label>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-1 sm:gap-4">
           {programTypes.map(program => (
             <button
               key={program.id}
@@ -509,7 +493,7 @@ export default function BackgroundForm({
                   school
                 } 
               })}
-              className={`p-2 border rounded-lg text-center text-sm ${
+              className={`p-1 sm:p-2 border rounded-lg text-center text-xs ${
                 programmeLevel === program.name
                   ? 'border-blue-600 bg-blue-50 text-blue-600' 
                   : 'border-gray-300 hover:border-gray-400'
@@ -523,7 +507,7 @@ export default function BackgroundForm({
 
       {/* Certificate Type - Hidden when auto-detected */}
       {!extractedName && (
-        <div className="space-y-2">
+        <div className="space-y-1 sm:space-y-2">
           <label className="flex items-center text-xs font-medium text-gray-700">
             <FileText className="w-4 h-4 mr-2 text-orange-600" />
             <span className="text-xs">Certificate Type</span>
@@ -578,7 +562,7 @@ export default function BackgroundForm({
                 school
               }
             })}
-            className="w-full p-2 border rounded-lg text-sm"
+            className="w-full p-2 sm:p-2 border rounded-lg text-sm"
             placeholder="Enter your full name"
           />
         </div>
@@ -588,7 +572,7 @@ export default function BackgroundForm({
       <div>
         <label htmlFor="phoneNumber" className="flex items-center text-xs font-medium text-gray-700 mb-2">
           <Phone className="w-4 h-4 mr-2 text-pink-600" />
-          <span className="text-xs">Kindly share your active phone number (SMS will be sent to this)</span>
+          <span className="text-xs">Kindly share your active phone number</span>
         </label>
         <input
           type="tel"
@@ -605,9 +589,10 @@ export default function BackgroundForm({
               school
             } 
           })}
-          className="w-full p-3 border rounded-lg"
+          className="w-full p-2 sm:p-3 border rounded-lg text-sm"
           placeholder="Enter your phone number"
         />
+        <p className="text-xs text-gray-500 opacity-75 mt-1">SMS will be sent to this</p>
       </div>
     </div>
   );

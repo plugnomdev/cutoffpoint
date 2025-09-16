@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, Edit, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { FileText, Edit, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { FormData } from '../types';
 import { useChecker } from '../CheckerContext';
 import CombinedSubjectsForm from './CombinedSubjectsForm';
@@ -17,9 +17,6 @@ type InputMethod = 'upload' | 'manual';
 export default function GradeInputStep({ formData, updateFields, onComplete }: GradeInputStepProps) {
   const { coreSubjects, electiveSubjects } = useChecker();
 
-  // Simple API endpoint logging
-  console.log('📚 Core subjects loaded from: GET /subjects/by-type?type=1');
-  console.log('📖 Elective subjects loaded from: GET /subjects/by-type?type=2');
   const [inputMethod, setInputMethod] = useState<InputMethod>('upload');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -28,12 +25,22 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
   const [gradesConfirmed, setGradesConfirmed] = useState(false);
   const [matchedSubjects, setMatchedSubjects] = useState<Array<{ name: string; grade: string; matchedSubject?: any }>>([]);
   const [isMatching, setIsMatching] = useState(false);
+  
+  // Combined loading state for smooth spinner experience
+  const isLoading = processing || isMatching;
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showResults, setShowResults] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
+      // Reset all states for new upload
       setUploadedFile(file);
       setProcessingError(null);
+      setParsedData(null);
+      setMatchedSubjects([]);
+      setIsTransitioning(false);
+      setShowResults(false);
       processFile(file);
     }
   }, []);
@@ -56,26 +63,16 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
       let parsedData: ParsedDocumentData;
 
       if (file.type.startsWith('image/')) {
-        console.log('Processing image file with Gemini Vision:', file.name, 'Size:', file.size, 'bytes');
         parsedData = await processImageFile(file);
-        console.log('Gemini Vision response:', parsedData.rawText);
-        console.log('Extracted subjects:', parsedData.extractedSubjects.length);
-        console.log('Extracted subjects data:', parsedData.extractedSubjects);
-        console.log('Student info:', parsedData.studentInfo);
       } else if (file.type === 'application/pdf') {
-        console.log('Processing PDF file:', file.name);
         parsedData = await processPDFFile(file);
-        console.log('PDF extracted text length:', parsedData.rawText.length);
-        console.log('PDF extracted text preview:', parsedData.rawText.substring(0, 200));
-        console.log('Extracted subjects:', parsedData.extractedSubjects.length);
-        console.log('Extracted subjects data:', parsedData.extractedSubjects);
       } else {
         throw new Error('Unsupported file type');
       }
 
       setParsedData(parsedData);
 
-      // Automatically apply AI matching
+      // Apply AI matching during the same processing step
       await applyMatching(parsedData);
 
       // Update form with extracted data if available
@@ -97,7 +94,6 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
       });
 
     } catch (error) {
-      console.error('File processing error:', error);
       setProcessingError(error instanceof Error ? error.message : 'Failed to process file');
     } finally {
       setProcessing(false);
@@ -107,10 +103,16 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
   const applyMatching = async (data: ParsedDocumentData) => {
     setIsMatching(true);
     try {
+      // Start transition to "Almost there" message after a short delay
+      setTimeout(() => {
+        if (isMatching) {
+          setIsTransitioning(true);
+        }
+      }, 1000); // Start showing "Almost there" after 1 second
+      
       const matchedSubjects = await matchSubjectsWithAI(data.extractedSubjects, [...coreSubjects, ...electiveSubjects]);
       setMatchedSubjects(matchedSubjects);
     } catch (error) {
-      console.error('AI matching failed:', error);
       // Fallback to basic matching
       const basicMatched = data.extractedSubjects.map(subject => ({
         ...subject,
@@ -119,13 +121,17 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
       setMatchedSubjects(basicMatched);
     } finally {
       setIsMatching(false);
+      // Ensure transition state is set and then show results
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setIsTransitioning(false);
+        setShowResults(true);
+      }, 800); // Final transition duration
     }
   };
 
   const handleConfirmGrades = () => {
     if (!parsedData || matchedSubjects.length === 0) return;
-
-    console.log('🎯 CONFIRM GRADES CLICKED - USING PREVIEW MATCHES');
 
     // Use the already-matched subjects from the preview (don't call AI again)
     const coreSubjectsMap: Record<number, string> = {};
@@ -133,25 +139,15 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
     const selectedElectives: string[] = [];
 
     matchedSubjects.forEach((subject) => {
-      console.log('🔍 Processing matched subject:', {
-        extractedName: subject.name,
-        grade: subject.grade,
-        hasMatch: !!subject.matchedSubject,
-        matchType: subject.matchedSubject?.type,
-        matchName: subject.matchedSubject?.name,
-        subjectId: subject.matchedSubject?.id
-      });
 
       if (subject.matchedSubject) {
         if (subject.matchedSubject.type === 1) {
           // Core subject - use API subject ID
           coreSubjectsMap[subject.matchedSubject.id] = subject.grade;
-          console.log('✅ Saved as CORE:', subject.matchedSubject.name, '=', subject.grade);
         } else if (subject.matchedSubject.type === 2) {
           // Elective subject - ALWAYS use API subject name as key (not extracted name)
           electiveGrades[subject.matchedSubject.name] = subject.grade;
           selectedElectives.push(subject.matchedSubject.name);
-          console.log('✅ Saved as ELECTIVE:', subject.matchedSubject.name, '=', subject.grade);
         } else {
           // Type is undefined - check if it's an elective by ID range or name
           // Elective subjects typically have higher IDs or specific names
@@ -165,29 +161,18 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
           if (isLikelyElective) {
             electiveGrades[subject.matchedSubject.name] = subject.grade;
             selectedElectives.push(subject.matchedSubject.name);
-            console.log('✅ Saved as ELECTIVE (inferred):', subject.matchedSubject.name, '=', subject.grade);
           } else {
             // Default to core if unsure
             coreSubjectsMap[subject.matchedSubject.id] = subject.grade;
-            console.log('✅ Saved as CORE (default):', subject.matchedSubject.name, '=', subject.grade);
           }
         }
       } else {
         // No match found - use extracted name as fallback elective
-        console.warn(`⚠️ No API match found for extracted subject: "${subject.name}" - saving as elective`);
         if (selectedElectives.length < 4) { // Ensure we don't exceed elective limit
           electiveGrades[subject.name] = subject.grade;
           selectedElectives.push(subject.name);
-          console.log('✅ Saved as ELECTIVE (fallback):', subject.name, '=', subject.grade);
         }
       }
-    });
-
-    console.log('💾 SAVING PREVIEW DATA:', {
-      coreSubjectsMap,
-      electiveGrades,
-      selectedElectives,
-      matchedSubjectsCount: matchedSubjects.length
     });
 
     updateFields({
@@ -197,7 +182,6 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
     });
 
     setGradesConfirmed(true);
-    console.log('✅ GRADES CONFIRMED - SHOULD NAVIGATE NOW');
   };
 
   const handleManualComplete = () => {
@@ -242,7 +226,7 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {/* Input Method Toggle */}
       <div className="flex justify-center">
         <div className="bg-gray-100 p-1 rounded-lg inline-flex">
@@ -273,11 +257,11 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
 
       {inputMethod === 'upload' && (
         <div className="space-y-6">
-          {/* Upload Area - Hide when processing is complete */}
-          {!parsedData && (
+          {/* Upload Area - Hide when showing results */}
+          {!showResults && (
             <div
               {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-4 sm:p-6 md:p-8 text-center cursor-pointer transition-colors ${
                 isDragActive
                   ? 'border-blue-400 bg-blue-50'
                   : 'border-gray-300 hover:border-gray-400'
@@ -285,22 +269,31 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
             >
               <input {...getInputProps()} />
               <div className="space-y-4">
-                {processing ? (
-                  <div className="flex flex-col items-center">
+                {(isLoading || isTransitioning) && !showResults ? (
+                  <div className={`flex flex-col items-center transition-all duration-500 ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
                     <div className="relative">
-                      <Loader className="w-8 h-8 text-blue-600 animate-spin" />
+                      <Loader className={`w-8 h-8 text-blue-600 ${isLoading ? 'animate-spin' : 'animate-pulse'}`} />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-xs text-blue-600 font-bold">AI</span>
                       </div>
                     </div>
                     <p className="text-gray-700 mt-3 font-medium text-center">
-                      🤖 AI is analyzing your results...<br/>
-                      <span className="text-sm text-gray-600">Extracting grades automatically</span>
+                      {isLoading && !isTransitioning ? (
+                        <>
+                          🤖 AI is processing your results...<br/>
+                          <span className="text-sm text-gray-600">Extracting & matching grades automatically</span>
+                        </>
+                      ) : (
+                        <>
+                          ✨ Almost there...<br/>
+                          <span className="text-sm text-gray-600">Preparing your matched results</span>
+                        </>
+                      )}
                     </p>
                     <div className="mt-4 flex space-x-1">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className={`w-2 h-2 bg-blue-600 rounded-full ${isLoading ? 'animate-bounce' : 'animate-pulse'}`}></div>
+                      <div className={`w-2 h-2 bg-blue-600 rounded-full ${isLoading ? 'animate-bounce' : 'animate-pulse'}`} style={{ animationDelay: '0.1s' }}></div>
+                      <div className={`w-2 h-2 bg-blue-600 rounded-full ${isLoading ? 'animate-bounce' : 'animate-pulse'}`} style={{ animationDelay: '0.2s' }}></div>
                     </div>
                   </div>
                 ) : uploadedFile ? (
@@ -314,9 +307,9 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
                     <div className="w-12 h-12 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-2">
                       <span className="text-2xl">📄</span>
                     </div>
-                    <p className="text-gray-900 font-semibold text-lg">Upload Your Results</p>
-                    <p className="text-gray-600 mt-1">AI will instantly extract your grades</p>
-                    <p className="text-gray-500 text-sm mt-2">Drop your WASSCE results or click to browse</p>
+                    <p className="text-gray-900 font-semibold text-base sm:text-lg">Upload Your Results</p>
+                    <p className="text-gray-600 text-sm sm:text-base mt-1">AI will instantly extract your grades</p>
+                    <p className="text-gray-500 text-xs sm:text-sm mt-2">Drop your WASSCE results or click to browse</p>
                     <p className="text-gray-400 text-xs mt-1">JPG, PNG, PDF • Max 10MB</p>
                   </div>
                 )}
@@ -341,12 +334,12 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
             </div>
           )}
 
-          {/* Parsed Data Preview */}
-          {parsedData && !processingError && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h3 className="text-base font-semibold text-blue-900 mb-4">Extracted Information</h3>
+          {/* Parsed Data Preview - Show after smooth transition */}
+          {showResults && !processingError && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
+              <h3 className="text-sm sm:text-base font-semibold text-blue-900 mb-3 sm:mb-4">Your Grades</h3>
 
-              {parsedData.studentInfo.name && (
+              {parsedData?.studentInfo.name && (
                 <div className="mb-4">
                   <span className="text-sm font-medium text-blue-800">Name: </span>
                   <span className="text-blue-900">{parsedData.studentInfo.name}</span>
@@ -355,50 +348,35 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
 
               <div className="mb-4">
                 <span className="text-sm font-medium text-blue-800">Subjects Found: </span>
-                <span className="text-blue-900">{parsedData.extractedSubjects.length}</span>
+                <span className="text-blue-900">{matchedSubjects.length}</span>
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs text-gray-600">
-                    {isMatching ? '🤖 Applying AI matching...' : '🤖 AI-matched subjects:'}
-                  </div>
-                  {isMatching && (
-                    <div className="flex items-center text-xs text-blue-600">
-                      <Loader className="w-3 h-3 mr-1 animate-spin" />
-                      Processing...
-                    </div>
-                  )}
-                </div>
                 {matchedSubjects.map((subject, index) => {
-                  // Use matched subject
-                  const matchedSubject = subject.matchedSubject;
-                  const subjectType = matchedSubject ? (matchedSubject.type === 1 ? 'Core' : 'Elective') : null;
+                  // Use matched subject name if available, otherwise use extracted name
+                  const displayName = subject.matchedSubject ? subject.matchedSubject.name : subject.name;
+                  const subjectType = subject.matchedSubject ? (subject.matchedSubject.type === 1 ? 'Core' : 'Elective') : null;
 
                   return (
-                    <div key={index} className="flex justify-between items-center bg-white p-2 rounded border">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">{subject.name}</span>
-                          {matchedSubject && (
-                            <>
-                              <span className="text-xs text-green-600">→</span>
-                              <span className="text-sm text-green-700 font-medium">{matchedSubject.name}</span>
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                subjectType === 'Core' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                              }`}>
-                                {subjectType}
-                              </span>
-                            </>
+                    <div key={index} className="flex justify-between items-center bg-white p-2 sm:p-3 rounded border">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-1 sm:space-x-2">
+                          <span className="font-medium text-sm sm:text-base truncate">{displayName}</span>
+                          {subjectType && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${
+                              subjectType === 'Core' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                            }`}>
+                              {subjectType}
+                            </span>
                           )}
-                          {!matchedSubject && (
-                            <span className="text-xs text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">
+                          {!subject.matchedSubject && (
+                            <span className="text-xs text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded flex-shrink-0">
                               Not Matched
                             </span>
                           )}
                         </div>
                       </div>
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-bold">
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs sm:text-sm font-bold flex-shrink-0 ml-2">
                         {subject.grade}
                       </span>
                     </div>
@@ -406,19 +384,22 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
                 })}
               </div>
 
-              <div className="mt-6 flex justify-end space-x-3">
+              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row sm:justify-end sm:space-x-3 space-y-2 sm:space-y-0">
                 <button
                   onClick={() => {
                     setParsedData(null);
                     setUploadedFile(null);
+                    setMatchedSubjects([]);
+                    setIsTransitioning(false);
+                    setShowResults(false);
                   }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm"
                 >
                   Upload Different File
                 </button>
                 <button
                   onClick={handleConfirmGrades}
-                  className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  className="flex items-center justify-center px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Confirm Grades
@@ -440,7 +421,7 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
           <div className="flex justify-end">
             <button
               onClick={handleManualComplete}
-              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              className="flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
             >
               Continue
             </button>
