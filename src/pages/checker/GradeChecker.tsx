@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import BackgroundForm from './steps/BackgroundForm';
-import CombinedSubjectsForm from './steps/CombinedSubjectsForm';
+import GradeInputStep from './steps/GradeInputStep';
 import ConfirmationForm from './steps/ConfirmationForm';
 import ResultsPage from './steps/ResultsPage';
 import { CheckerProvider } from './CheckerContext';
@@ -121,16 +121,20 @@ export default function GradeChecker() {
       try {
         setLoading(true);
 
-        // Parallel API calls for better performance - fetch both core and electives the same way
+        // Load subjects using proper API endpoints as per documentation
+        console.log('Loading core subjects (type=1)...');
+        const coreSubjectsData = await fetchSubjectsByType(1);
+        console.log('Core subjects loaded:', coreSubjectsData);
+
+        console.log('Loading elective subjects (type=2)...');
+        const electiveSubjectsData = await fetchSubjectsByType(2);
+        console.log('Elective subjects loaded:', electiveSubjectsData);
+
         const [
           countriesData,
-          coreSubjectsData,
-          electiveSubjectsData,
           gradesData
         ] = await Promise.all([
           fetchCountries(),
-          fetchSubjectsByType(1), // Core subjects - same API as electives
-          fetchSubjectsByType(2), // Elective subjects - same API as core
           fetchGrades()
         ]);
 
@@ -142,7 +146,7 @@ export default function GradeChecker() {
         // Initialize core subjects in form data with empty grades
         setFormData(prev => ({
           ...prev,
-          coreSubjects: coreSubjectsData.reduce((acc, subject) => ({
+          coreSubjects: coreSubjectsData.reduce((acc: Record<number, string>, subject: Subject) => ({
             ...acc,
             [subject.id]: ''
           }), {})
@@ -174,8 +178,8 @@ export default function GradeChecker() {
   }, [formData.background.country]);
 
   const steps = [
+    'Grade Input',
     'Background',
-    'Subject Grades',
     'Confirmation',
     'Payment',
     'Results'
@@ -264,7 +268,7 @@ export default function GradeChecker() {
         <meta name="keywords" content="legon cutoff point, ucc cutoff point, knust cutoff point" />
       </Helmet>
       <CheckerProvider value={contextValue}>
-        <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           {/* Progress Steps - Hidden as requested */}
           {false && (
             <nav aria-label="Progress" className="mb-8">
@@ -336,15 +340,15 @@ export default function GradeChecker() {
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-[#2d3192] mb-1">
-                    {currentStep === 0 && "Enter your background information"}
-                    {currentStep === 1 && "Select grades for core subjects and choose electives"}
+                    {currentStep === 0 && "Upload your results or enter grades manually"}
+                    {currentStep === 1 && (formData.background.fullName ? `Hello ${formData.background.fullName.split(' ')[0]}, kindly share more info below` : "Enter your background information")}
                     {currentStep === 2 && "Review your information before payment"}
                     {currentStep === 3 && "Complete payment for qualification check"}
                     {currentStep === 4 && "View your programme qualification results"}
                   </h4>
                   <p className="text-xs text-[#2d3192]/80">
-                    {currentStep === 0 && "This helps us determine your eligibility for programmes in your selected school."}
-                    {currentStep === 1 && "Core subjects are mandatory. Choose 2-4 elective subjects and enter all your grades."}
+                    {currentStep === 0 && "Upload a photo or PDF of your results for automatic processing, or enter grades manually."}
+                    {currentStep === 1 && "This helps us determine your eligibility for programmes in your selected school."}
                     {currentStep === 2 && "Review your information before proceeding to payment."}
                     {currentStep === 3 && "Complete payment to access your qualification results."}
                     {currentStep === 4 && "See which programmes you're qualified for based on your WASSCE grades."}
@@ -353,19 +357,22 @@ export default function GradeChecker() {
               </div>
             </div>
             {currentStep === 0 && (
+              <GradeInputStep
+                formData={formData}
+                updateFields={updateFields}
+                onComplete={next}
+              />
+            )}
+
+            {currentStep === 1 && (
               <BackgroundForm
                 countries={countries}
                 schools={schools}
                 {...formData.background}
                 updateFields={updateFields}
-              />
-            )}
-            
-            {currentStep === 1 && (
-              <CombinedSubjectsForm
-                coreSubjects={coreSubjects}
-                {...formData.coreSubjects}
-                updateFields={updateFields}
+                extractedName={formData.background.fullName} // Will be set by GradeInputStep
+                extractedCertificateType={formData.background.certificateType} // Will be set by GradeInputStep
+                extractedCourseOffered={formData.background.courseOffered} // Will be set by GradeInputStep
               />
             )}
 
@@ -581,47 +588,49 @@ export default function GradeChecker() {
               </div>
             )}
 
-            {/* Navigation Buttons - Ghana Inspired */}
-            <div className="mt-8 flex justify-between items-center">
-              <button
-                type="button"
-                onClick={prev}
-                disabled={currentStep === 0}
-                className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                  currentStep === 0
-                    ? 'invisible'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </button>
+            {/* Navigation Buttons - Ghana Inspired - Hide on first step since GradeInputStep has its own buttons */}
+            {currentStep > 0 && (
+              <div className="mt-8 flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={prev}
+                  disabled={currentStep === 0}
+                  className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                    currentStep === 0
+                      ? 'invisible'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back
+                </button>
 
-              <div className="flex items-center space-x-4">
-                <div className="text-sm text-gray-500">
-                  Step {currentStep + 1} of {steps.length}
+                <div className="flex items-center space-x-4">
+                  <div className="text-sm text-gray-500">
+                    Step {currentStep + 1} of {steps.length}
+                  </div>
+
+                  {currentStep < steps.length - 1 ? (
+                    <button
+                      type="button"
+                      onClick={next}
+                      className="flex items-center px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      {currentStep === steps.length - 3 ? 'Review' : currentStep === steps.length - 2 ? 'Pay Now' : 'Continue'}
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all duration-200"
+                    >
+                      Start New Check
+                    </button>
+                  )}
                 </div>
-
-                {currentStep < steps.length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={next}
-                    className="flex items-center px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                  >
-                    {currentStep === steps.length - 3 ? 'Review' : currentStep === steps.length - 2 ? 'Pay Now' : 'Continue'}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all duration-200"
-                  >
-                    Start New Check
-                  </button>
-                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
       </CheckerProvider>

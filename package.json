@@ -14,13 +14,18 @@
     "@tanstack/react-query-devtools": "^5.81.5",
     "axios": "^1.10.0",
     "lucide-react": "^0.344.0",
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^5.4.149",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-dropzone": "^14.3.8",
     "react-helmet-async": "^2.0.5",
-    "react-router-dom": "^6.28.0"
+    "react-router-dom": "^6.28.0",
+    "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

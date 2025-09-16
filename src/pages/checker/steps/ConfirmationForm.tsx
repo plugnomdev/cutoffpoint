@@ -26,6 +26,12 @@ export default function ConfirmationForm({
     return nameMap[id] || `Subject ${id}`;
   };
 
+  // Helper function to get elective subject display name
+  // Since we now save electives with proper API names, just return as-is
+  const getElectiveSubjectName = (subjectKey: string) => {
+    return subjectKey; // Already the proper API subject name
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -80,18 +86,30 @@ export default function ConfirmationForm({
         </div>
 
         {/* Elective Subjects */}
-        {formData.selectedElectives.length > 0 && (
+        {(() => {
+          console.log('🔍 CONFIRMATION PAGE - Elective check:', {
+            selectedElectives: formData.selectedElectives,
+            electiveGrades: formData.electiveGrades,
+            selectedElectivesLength: formData.selectedElectives.length,
+            electiveGradesKeys: Object.keys(formData.electiveGrades)
+          });
+          return formData.selectedElectives.length > 0;
+        })() && (
           <div className="p-4">
             <h3 className="font-medium text-gray-900 mb-4">Elective Subjects</h3>
             <div className="space-y-4">
-              {formData.selectedElectives.map((subject) => (
-                <div key={subject} className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-700">{subject}</span>
-                  <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
-                    {formData.electiveGrades[subject] || 'Not graded'}
-                  </span>
-                </div>
-              ))}
+              {formData.selectedElectives.map((subject) => {
+                const displayName = getElectiveSubjectName(subject);
+                console.log('📋 Displaying elective:', { subject, displayName, grade: formData.electiveGrades[subject] });
+                return (
+                  <div key={subject} className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700">{displayName}</span>
+                    <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                      {formData.electiveGrades[subject] || 'Not graded'}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

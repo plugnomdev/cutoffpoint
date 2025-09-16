@@ -87,7 +87,7 @@ function SearchableSelect({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        className={`w-full p-3 text-left border rounded-lg bg-white transition-all duration-200 flex items-center justify-between ${
+        className={`w-full p-2 text-left border rounded-lg bg-white transition-all duration-200 flex items-center justify-between ${
           disabled
             ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
             : 'hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
@@ -100,7 +100,7 @@ function SearchableSelect({
           ) : (
             icon && <span className="mr-2 flex-shrink-0">{icon}</span>
           )}
-          <span className={`truncate ${!selectedOption ? 'text-gray-500' : 'text-gray-900'}`}>
+          <span className={`truncate text-sm ${!selectedOption ? 'text-gray-500' : 'text-gray-900'}`}>
             {selectedOption ? selectedOption.label : displayPlaceholder}
           </span>
         </div>
@@ -128,7 +128,7 @@ function SearchableSelect({
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search..."
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500"
+                  className="w-full pl-10 pr-4 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500"
                   onClick={(e) => e.stopPropagation()}
                 />
                 {searchTerm && (
@@ -154,7 +154,7 @@ function SearchableSelect({
                     key={option.value}
                     type="button"
                     onClick={() => handleSelect(option.value)}
-                    className={`w-full p-3 text-left hover:bg-blue-50 transition-colors duration-150 flex items-center ${
+                    className={`w-full p-2 text-left text-sm hover:bg-blue-50 transition-colors duration-150 flex items-center ${
                       index === highlightedIndex ? 'bg-blue-50' : ''
                     } ${option.value === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'}`}
                   >
@@ -184,6 +184,10 @@ type BackgroundFormProps = {
   countries: Country[];
   schools: School[];
   updateFields: (fields: Partial<FormData>) => void;
+  extractedName?: string;
+  detectedCountry?: string;
+  extractedCertificateType?: string;
+  extractedCourseOffered?: string;
 }
 
 export default function BackgroundForm({
@@ -195,7 +199,11 @@ export default function BackgroundForm({
   school,
   countries,
   schools,
-  updateFields
+  updateFields,
+  extractedName,
+  detectedCountry,
+  extractedCertificateType,
+  extractedCourseOffered
 }: BackgroundFormProps) {
   const location = useLocation();
   const [certificateTypes, setCertificateTypes] = useState<CertificateType[]>([]);
@@ -261,15 +269,133 @@ export default function BackgroundForm({
     }
   }, [location.state]);
 
+  // Always ensure Ghana is selected as the default country
+  useEffect(() => {
+    if (countries.length > 0) {
+      const ghanaCountry = countries.find(c => c.name.toLowerCase() === 'ghana');
+      if (ghanaCountry && (!country || country.name.toLowerCase() !== 'ghana')) {
+        updateFields({
+          background: {
+            courseOffered,
+            certificateType: certificateType || extractedCertificateType || 'WASSCE',
+            programmeLevel,
+            fullName: extractedName || fullName,
+            phoneNumber,
+            country: ghanaCountry,
+            school: null
+          }
+        });
+      }
+    }
+  }, [countries, country]); // Only depend on countries and current country
+
+  // Set defaults from extracted data
+  useEffect(() => {
+    if (countries.length === 0) return; // Wait for countries to load
+
+    const backgroundUpdates: any = {
+      courseOffered,
+      certificateType: certificateType || extractedCertificateType || 'WASSCE',
+      programmeLevel,
+      fullName: extractedName || fullName,
+      phoneNumber,
+      country,
+      school
+    };
+
+    let hasUpdates = false;
+
+    if (extractedName && !fullName) {
+      backgroundUpdates.fullName = extractedName;
+      hasUpdates = true;
+    }
+
+    if (extractedCertificateType && !certificateType) {
+      backgroundUpdates.certificateType = extractedCertificateType;
+      hasUpdates = true;
+    }
+
+    // Match extracted course offered with API courses
+    if (extractedCourseOffered && !courseOffered) {
+      const matchedCourse = courses.find(course => {
+        const courseName = course.name.toLowerCase();
+        const extractedName = extractedCourseOffered.toLowerCase();
+
+        // Exact match
+        if (courseName === extractedName) return true;
+
+        // Partial matches
+        if (courseName.includes(extractedName) || extractedName.includes(courseName)) return true;
+
+        // Handle common course variations
+        const courseMappings = {
+          'science': ['general science', 'integrated science', 'pure science', 'science'],
+          'arts': ['arts', 'humanities', 'languages'],
+          'business': ['business', 'commercial', 'accounting'],
+          'technical': ['technical', 'vocational', 'industrial'],
+          'agricultural': ['agricultural', 'agriculture', 'farming'],
+          'home economics': ['home economics', 'home science', 'management in living']
+        };
+
+        // Check if extracted course matches any variation
+        for (const [standardName, variations] of Object.entries(courseMappings)) {
+          if (variations.some(v => extractedName.includes(v)) &&
+              variations.some(v => courseName.includes(v))) {
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+      if (matchedCourse) {
+        backgroundUpdates.courseOffered = matchedCourse.name;
+        hasUpdates = true;
+      }
+    }
+
+    if (detectedCountry && country && country.name.toLowerCase() === 'ghana') {
+      // Only update if different from Ghana
+      const detectedCountryObj = countries.find(c => c.name.toLowerCase() === detectedCountry.toLowerCase());
+      if (detectedCountryObj && detectedCountryObj.id !== country.id) {
+        backgroundUpdates.country = detectedCountryObj;
+        backgroundUpdates.school = null; // Reset school when country changes
+        hasUpdates = true;
+      }
+    }
+
+    if (hasUpdates) {
+      updateFields({
+        background: backgroundUpdates
+      });
+    }
+  }, [extractedName, extractedCertificateType, extractedCourseOffered, detectedCountry, countries, courses, fullName, certificateType, courseOffered, country]);
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Background Information</h2>
+    <div className="space-y-5">
+
+      {/* AI-Extracted Info Summary */}
+      {(extractedName || extractedCertificateType) && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center space-x-4">
+              {extractedCertificateType && (
+                <>
+                  <span className="font-medium text-green-800">Certificate Type:</span>
+                  <span className="text-green-900">{certificateType || 'WASSCE'}</span>
+                </>
+              )}
+            </div>
+            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">AI Detected</span>
+          </div>
+        </div>
+      )}
 
       {/* Country Selection */}
       <div className="space-y-2">
-        <label className="flex items-center text-sm font-medium text-gray-700">
+        <label className="flex items-center text-xs font-medium text-gray-700">
           <Globe className="w-4 h-4 mr-2 text-blue-600" />
-          Choose Country
+          Which country do you want to school in?
         </label>
         <SearchableSelect
           options={countries.map(c => ({
@@ -277,7 +403,7 @@ export default function BackgroundForm({
             label: c.name,
             flag: c.flag
           }))}
-          value={country ? country.code : ''}
+          value={country ? country.code : (countries.find(c => c.name.toLowerCase() === 'ghana')?.code || '')}
           onChange={(value) => {
             const selected = countries.find(c => c.code === value) || null;
             updateFields({
@@ -299,110 +425,11 @@ export default function BackgroundForm({
         />
       </div>
 
-      {/* School Selection */}
+      {/* Course Offered - Always visible, right after country */}
       <div className="space-y-2">
-        <label className="flex items-center text-sm font-medium text-gray-700">
-          <Building2 className="w-4 h-4 mr-2 text-green-600" />
-          Choose School
-        </label>
-        <SearchableSelect
-          options={schools.map(s => ({
-            value: String(s.id),
-            label: s.name
-          }))}
-          value={school ? String(school.id) : ''}
-          onChange={(value) => {
-            const selected = schools.find(s => String(s.id) === value) || null;
-            updateFields({
-              background: {
-                courseOffered,
-                certificateType: certificateType || 'WASSCE',
-                programmeLevel,
-                fullName,
-                phoneNumber,
-                country,
-                school: selected
-              }
-            });
-          }}
-          placeholder={country ? 'Select School' : 'Select country first'}
-          disabled={!country}
-          _required
-          icon={<Building2 className="w-4 h-4 text-green-600" />}
-        />
-      </div>
-
-      {/* Programme Level */}
-      <div>
-        <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-          <Award className="w-4 h-4 mr-2 text-purple-600" />
-          Programme Level
-        </label>
-        <div className="grid grid-cols-3 gap-4">
-          {programTypes.map(program => (
-            <button
-              key={program.id}
-              type="button"
-              onClick={() => updateFields({ 
-                background: { 
-                  programmeLevel: program.name as 'Certificate' | 'Diploma' | 'Degree',
-                  certificateType: certificateType || 'WASSCE',
-                  courseOffered,
-                  fullName,
-                  phoneNumber,
-                  country,
-                  school
-                } 
-              })}
-              className={`p-3 border rounded-lg text-center ${
-                programmeLevel === program.name
-                  ? 'border-blue-600 bg-blue-50 text-blue-600' 
-                  : 'border-gray-300 hover:border-gray-400'
-              }`}
-            >
-              {program.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Certificate Type */}
-      <div className="space-y-2">
-        <label className="flex items-center text-sm font-medium text-gray-700">
-          <FileText className="w-4 h-4 mr-2 text-orange-600" />
-          Choose Certificate Type
-        </label>
-        <SearchableSelect
-          options={certificateTypes.map(type => ({
-            value: type.name,
-            label: type.name
-          }))}
-          value={certificateType}
-          onChange={(value) => {
-            setCertificateType(value);
-            updateFields({
-              background: {
-                courseOffered,
-                certificateType: value,
-                programmeLevel,
-                fullName,
-                phoneNumber,
-                country,
-                school
-              }
-            });
-          }}
-          placeholder="Select Certificate Type"
-          _required
-          icon={<FileText className="w-4 h-4 text-orange-600" />}
-        />
-      </div>
-
-      {/* Course Offered */}
-      <div className="space-y-2">
-        <label className="flex items-center text-sm font-medium text-gray-700">
+        <label className="flex items-center text-xs font-medium text-gray-700">
           <BookOpen className="w-4 h-4 mr-2 text-indigo-600" />
-          Choose Course Offered in SHS
+          <span className="text-xs">Which course did you study in SHS?</span>
         </label>
         <SearchableSelect
           options={courses.map(course => ({
@@ -427,37 +454,141 @@ export default function BackgroundForm({
         />
       </div>
 
-      {/* Full Name */}
-      <div>
-        <label htmlFor="fullName" className="flex items-center text-sm font-medium text-gray-700 mb-2">
-          <User className="w-4 h-4 mr-2 text-teal-600" />
-          Full Name
+      {/* School Selection */}
+      <div className="space-y-2">
+        <label className="flex items-center text-xs font-medium text-gray-700">
+          <Building2 className="w-4 h-4 mr-2 text-green-600" />
+          <span className="text-xs">{country ? `Which school in ${country.name} do you want to apply to?` : 'Choose School'}</span>
         </label>
-        <input
-          type="text"
-          id="fullName"
-          value={fullName}
-          onChange={e => updateFields({ 
-            background: { 
-              fullName: e.target.value,
-              certificateType: certificateType || 'WASSCE',
-              programmeLevel,
-              courseOffered,
-              phoneNumber,
-              country,
-              school
-            } 
-          })}
-          className="w-full p-3 border rounded-lg"
-          placeholder="Enter your full name"
+        <SearchableSelect
+          options={schools.map(s => ({
+            value: String(s.id),
+            label: s.name
+          }))}
+          value={school ? String(school.id) : ''}
+          onChange={(value) => {
+            const selected = schools.find(s => String(s.id) === value) || null;
+            updateFields({
+              background: {
+                courseOffered,
+                certificateType: certificateType || 'WASSCE',
+                programmeLevel,
+                fullName,
+                phoneNumber,
+                country,
+                school: selected
+              }
+            });
+          }}
+          placeholder="Select school"
+          disabled={!country}
+          _required
+          icon={<Building2 className="w-4 h-4 text-green-600" />}
         />
       </div>
 
+      {/* Programme Level */}
+      <div>
+        <label className="flex items-center text-xs font-medium text-gray-700 mb-2">
+          <Award className="w-4 h-4 mr-2 text-purple-600" />
+          <span className="text-xs">What programme level do you want to pursue?</span>
+        </label>
+        <div className="grid grid-cols-3 gap-4">
+          {programTypes.map(program => (
+            <button
+              key={program.id}
+              type="button"
+              onClick={() => updateFields({ 
+                background: { 
+                  programmeLevel: program.name as 'Certificate' | 'Diploma' | 'Degree',
+                  certificateType: certificateType || 'WASSCE',
+                  courseOffered,
+                  fullName,
+                  phoneNumber,
+                  country,
+                  school
+                } 
+              })}
+              className={`p-2 border rounded-lg text-center text-sm ${
+                programmeLevel === program.name
+                  ? 'border-blue-600 bg-blue-50 text-blue-600' 
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
+            >
+              {program.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Certificate Type - Hidden when auto-detected */}
+      {!extractedName && (
+        <div className="space-y-2">
+          <label className="flex items-center text-xs font-medium text-gray-700">
+            <FileText className="w-4 h-4 mr-2 text-orange-600" />
+            <span className="text-xs">Certificate Type</span>
+          </label>
+          <SearchableSelect
+            options={certificateTypes.map(type => ({
+              value: type.name,
+              label: type.name
+            }))}
+            value={certificateType}
+            onChange={(value) => {
+              setCertificateType(value);
+              updateFields({
+                background: {
+                  courseOffered,
+                  certificateType: value,
+                  programmeLevel,
+                  fullName,
+                  phoneNumber,
+                  country,
+                  school
+                }
+              });
+            }}
+            placeholder="Select Certificate Type"
+            _required
+            icon={<FileText className="w-4 h-4 text-orange-600" />}
+          />
+        </div>
+      )}
+
+
+      {/* Full Name - Hidden when extracted from AI */}
+      {!extractedName && (
+        <div>
+          <label htmlFor="fullName" className="flex items-center text-xs font-medium text-gray-700 mb-2">
+            <User className="w-4 h-4 mr-2 text-teal-600" />
+            <span className="text-xs">Full Name</span>
+          </label>
+          <input
+            type="text"
+            id="fullName"
+            value={fullName}
+            onChange={e => updateFields({
+              background: {
+                fullName: e.target.value,
+                certificateType: certificateType || 'WASSCE',
+                programmeLevel,
+                courseOffered,
+                phoneNumber,
+                country,
+                school
+              }
+            })}
+            className="w-full p-2 border rounded-lg text-sm"
+            placeholder="Enter your full name"
+          />
+        </div>
+      )}
+
       {/* Phone Number */}
       <div>
-        <label htmlFor="phoneNumber" className="flex items-center text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor="phoneNumber" className="flex items-center text-xs font-medium text-gray-700 mb-2">
           <Phone className="w-4 h-4 mr-2 text-pink-600" />
-          Phone Number
+          <span className="text-xs">Kindly share your active phone number (SMS will be sent to this)</span>
         </label>
         <input
           type="tel"
