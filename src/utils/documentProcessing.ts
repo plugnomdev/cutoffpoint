@@ -337,6 +337,14 @@ export const CORE_SUBJECT_MAPPING: Record<string, { id: number; name: string; su
   'Social': { id: 4, name: 'Social Studies', subject_code: 'Social', type: 1 }
 };
 
+// Elective subjects that should never be treated as core
+export const ELECTIVE_SUBJECTS = [
+  'Elective Mathematics',
+  'Mathematics (Elect)',
+  'Elective Maths',
+  'Mathematics Elective'
+];
+
 // AI-powered subject matching with API subjects
 export async function matchSubjectsWithAI(
   extractedSubjects: Array<{ name: string; grade: string }>,
@@ -491,8 +499,13 @@ Return ONLY the JSON array, no explanations.`;
 export function findBestSubjectMatch(subjectName: string, apiSubjects: Array<{ id: number; name: string; subject_code: string; type: number }>) {
   const normalizedSubject = subjectName.toLowerCase().trim();
   
+  // First check if this is a known elective subject that should never be treated as core
+  const isKnownElective = ELECTIVE_SUBJECTS.some(elective => 
+    elective.toLowerCase().includes(normalizedSubject) || normalizedSubject.includes(elective.toLowerCase())
+  );
+  
   // Check if this is an elective subject (contains "elect" or "(elect)")
-  const isElectiveSubject = normalizedSubject.includes('elect') || normalizedSubject.includes('(elect)');
+  const isElectiveSubject = isKnownElective || normalizedSubject.includes('elect') || normalizedSubject.includes('(elect)');
   
   // Filter subjects by type based on whether it's elective
   const relevantSubjects = isElectiveSubject 
@@ -517,19 +530,25 @@ export function findBestSubjectMatch(subjectName: string, apiSubjects: Array<{ i
   );
   if (containsNameMatch) return containsNameMatch;
 
-  // Special handling for Mathematics (Elect) -> Elective Maths (using subject_code)
+  // Special handling for Mathematics (Elect) -> Elective Maths (prioritize exact match)
   if (normalizedSubject.includes('math') && normalizedSubject.includes('elect')) {
-    // First try to match by subject_code for Elective Maths
-    const electiveMathMatch = relevantSubjects.find(s => 
-      s.subject_code.toLowerCase().includes('elective') && s.subject_code.toLowerCase().includes('math')
+    // First try exact match for 'Elective Maths' name
+    const electiveMathExactMatch = relevantSubjects.find(s => 
+      s.name.toLowerCase() === 'elective maths'
     );
-    if (electiveMathMatch) return electiveMathMatch;
+    if (electiveMathExactMatch) return electiveMathExactMatch;
     
-    // Fallback to name matching if subject_code doesn't work
+    // Then try contains match for 'Elective Maths' name
     const electiveMathNameMatch = relevantSubjects.find(s => 
       s.name.toLowerCase().includes('elective') && s.name.toLowerCase().includes('math')
     );
     if (electiveMathNameMatch) return electiveMathNameMatch;
+    
+    // Finally try subject_code matching
+    const electiveMathMatch = relevantSubjects.find(s => 
+      s.subject_code.toLowerCase().includes('elective') && s.subject_code.toLowerCase().includes('math')
+    );
+    if (electiveMathMatch) return electiveMathMatch;
   }
 
   // Word-based matching - try subject_code then name (within relevant subjects)
@@ -582,13 +601,13 @@ export async function testAPIs() {
     const coreResponse = await fetch('https://cutoffpoint.com.gh/api/v1/subjects/by-type?type=1', {
       headers: { Authorization: `Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiNDI4OGZhYjE1Zjc2NGExZmU2ZTFiZGU0OTVlMDBiNDdlYmZiYjRkNTMzN2E4NGUwMTFhODc2NTgzZDM0N2NhNTI3MzMzOWNlNTc5Y2NkZjQiLCJpYXQiOjE3NTE5OTU1MjIuMjIwOTUxLCJuYmYiOjE3NTE5OTU1MjIuMjIwOTUzLCJleHAiOjE3ODM1MzE1MjIuMjA5MTczLCJzdWIiOiIyIiwic2NvcGVzIjpbXX0.mCHujZxR8eGFG_bdVP5YTDoL4dnGYEwsmu2RtmQmn-N7F06RtGBLxWxw9s5JzZVyQCZ8UV-AriNRIoRqhtfeZJfsvA0loN5ZrzhWErApZ5x08bNaNUQOVSWB-hnhQd8TvCq7pZF4QPNtr7BUsM3w-obabdESUagx15IApsZ2AHBCWafx4CvSOneugeo110QIFshDzudUZbXg0k3d1kNoRmCR_FCXF9w_Tb9nLWZDABL0ehiZlXeduF7S2AW0Y1gP85zcMOvyyTCo2dBTX73yrC9IUuhOEYFswv8PynKrydIRh5dtNTzIOlsYU_pb58FPDqO64tjigRbRaa_abgXAoZzne_InDmsAir1Wymuyhyyk6h8IvEMiI4j4_pMora-iA4bGZStS7zHacHBr50LQhq5OJdPUWDfv-1RU48WlT-KTbkrPqOLW7LiG9C3Sw2F2PbNTvGw-fG9BL0avfY6aEKDq9jJ_fxKsGehUYz8OjclthJMGGvmdLmGmIu1uGJ3keGYznnBZyV6vrCk8ZDKCHbJbV2pnxGbZOLJhUUD7imCXoiVhGL1h35z_jYtxgwGER7uYKHkjbXPhhNPQaDtL5XCcTUulHNUh6N951u-aLb1uFAwGoMpTKZ66M2_Hy5EG-oieLC0FkZpxmHsHBsCLOXioE3eP9-IDeRgfwPfQvrw` }
     });
-    const coreData = await coreResponse.json();
+    await coreResponse.json();
 
     // Test elective subjects (type=2)
     const electiveResponse = await fetch('https://cutoffpoint.com.gh/api/v1/subjects/by-type?type=2', {
       headers: { Authorization: `Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiNDI4OGZhYjE1Zjc2NGExZmU2ZTFiZGU0OTVlMDBiNDdlYmZiYjRkNTMzN2E4NGUwMTFhODc2NTgzZDM0N2NhNTI3MzMzOWNlNTc5Y2NkZjQiLCJpYXQiOjE3NTE5OTU1MjIuMjIwOTUxLCJuYmYiOjE3NTE5OTU1MjIuMjIwOTUzLCJleHAiOjE3ODM1MzE1MjIuMjA5MTczLCJzdWIiOiIyIiwic2NvcGVzIjpbXX0.mCHujZxR8eGFG_bdVP5YTDoL4dnGYEwsmu2RtmQmn-N7F06RtGBLxWxw9s5JzZVyQCZ8UV-AriNRIoRqhtfeZJfsvA0loN5ZrzhWErApZ5x08bNaNUQOVSWB-hnhQd8TvCq7pZF4QPNtr7BUsM3w-obabdESUagx15IApsZ2AHBCWafx4CvSOneugeo110QIFshDzudUZbXg0k3d1kNoRmCR_FCXF9w_Tb9nLWZDABL0ehiZlXeduF7S2AW0Y1gP85zcMOvyyTCo2dBTX73yrC9IUuhOEYFswv8PynKrydIRh5dtNTzIOlsYU_pb58FPDqO64tjigRbRaa_abgXAoZzne_InDmsAir1Wymuyhyyk6h8IvEMiI4j4_pMora-iA4bGZStS7zHacHBr50LQhq5OJdPUWDfv-1RU48WlT-KTbkrPqOLW7LiG9C3Sw2F2PbNTvGw-fG9BL0avfY6aEKDq9jJ_fxKsGehUYz8OjclthJMGGvmdLmGmIu1uGJ3keGYznnBZyV6vrCk8ZDKCHbJbV2pnxGbZOLJhUUD7imCXoiVhGL1h35z_jYtxgwGER7uYKHkjbXPhhNPQaDtL5XCcTUulHNUh6N951u-aLb1uFAwGoMpTKZ66M2_Hy5EG-oieLC0FkZpxmHsHBsCLOXioE3eP9-IDeRgfwPfQvrw` }
     });
-    const electiveData = await electiveResponse.json();
+    await electiveResponse.json();
 
   } catch (error) {
   }

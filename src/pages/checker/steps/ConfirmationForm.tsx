@@ -1,7 +1,6 @@
 import { FormData } from '../types';
-import { useChecker } from '../CheckerContext';
 import { useState } from 'react';
-import { submitQualificationCheck, CheckRequest, createInitialOrder, InitialOrderRequest } from '../../../services/api/universityApi';
+import { submitQualificationCheck, createInitialOrder, InitialOrderRequest } from '../../../services/api/universityApi';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 type ConfirmationFormProps = {
@@ -15,25 +14,13 @@ export default function ConfirmationForm({
   onPaymentComplete,
   paymentCompleted = false
 }: ConfirmationFormProps) {
-  const { coreSubjects } = useChecker();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [gradesExpanded, setGradesExpanded] = useState(false);
   const [localPaymentCompleted, setLocalPaymentCompleted] = useState(paymentCompleted);
 
-  // Helper function to get subject name by ID
+  // Helper function to get subject name by ID - use exactly what was matched in step 1
   const getSubjectName = (id: number) => {
-    const subject = coreSubjects.find(s => s.id === id);
-    if (subject) {
-      return subject.name;
-    }
-    // Fallback: try to find subject by name mapping
-    const nameMap: Record<number, string> = {
-      1: 'Mathematics',
-      2: 'English Language',
-      3: 'Integrated Science',
-      4: 'Social Studies'
-    };
-    return nameMap[id] || `Subject ${id}`;
+    return formData.coreSubjectNames?.[id] || `Subject ${id}`;
   };
 
   // Helper function to get elective subject display name
@@ -69,11 +56,11 @@ export default function ConfirmationForm({
         return gradeMap[grade] || 0;
       };
 
-      // Create subject name to ID mapping
+      // Create subject name to ID mapping - use exactly what was matched in step 1
       const subjectNameToId = (subjectName: string): number => {
-        // Find the subject by name in our loaded subjects
-        const subject = coreSubjects.find(s => s.name === subjectName);
-        return subject?.id || 1; // Default to 1 if not found
+        // Find the subject by name in our saved core subject names
+        const subjectEntry = Object.entries(formData.coreSubjectNames || {}).find(([, name]) => name === subjectName);
+        return subjectEntry ? parseInt(subjectEntry[0]) : 1; // Default to 1 if not found
       };
 
       // Map certificate type to ID
@@ -96,24 +83,20 @@ export default function ConfirmationForm({
         return programMap[programLevel] || 3;
       };
 
-      // Create subject ID to name mapping for core subjects
+      // Create subject ID to name mapping for core subjects - use exactly what was matched in step 1
       const subjectIdToName = (subjectId: string): string => {
-        const subject = coreSubjects.find(s => s.id.toString() === subjectId);
-        if (subject) {
-          // Convert common subject names to expected format
-          const name = subject.name.toLowerCase();
-          // Map common variations to expected names
-          const nameMap: Record<string, string> = {
-            'mathematics': 'math',
-            'english language': 'english',
-            'english': 'english',
-            'science': 'science',
-            'social studies': 'social',
-            'social': 'social'
-          };
-          return nameMap[name] || name;
-        }
-        return subjectId;
+        // Get from saved core subject names and convert to expected format
+        const name = formData.coreSubjectNames?.[parseInt(subjectId)]?.toLowerCase() || '';
+        // Map common variations to expected names
+        const nameMap: Record<string, string> = {
+          'mathematics': 'math',
+          'english language': 'english',
+          'english': 'english',
+          'science': 'science',
+          'social studies': 'social',
+          'social': 'social'
+        };
+        return nameMap[name] || name;
       };
 
       // Step 3: Complete the check with the code from initial order
@@ -214,18 +197,17 @@ export default function ConfirmationForm({
           }`}>
             {/* Core Subjects */}
             <div className="p-3 sm:p-4 border-t">
-              <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm">Core Subjects</h4>
+              <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm bg-gray-100 px-2 py-1 rounded inline-block">Core Subjects</h4>
               <div className="space-y-2 sm:space-y-3">
                 {Object.entries(formData.coreSubjects).map(([subjectId, grade]) => {
-                  const id = Number(subjectId);
-                  const subjectName = getSubjectName(id);
-                  console.log('Core subject:', { subjectId, id, subjectName, grade });
+                  const subjectName = getSubjectName(Number(subjectId));
+                  console.log('Core subject:', { subjectId, subjectName, grade });
                   return (
                     <div key={subjectId} className="flex justify-between items-center">
-                      <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-700 truncate">
                         {subjectName}
                       </span>
-                      <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded flex-shrink-0 ml-2">
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 rounded flex-shrink-0 ml-2">
                         {grade || 'Not selected'}
                       </span>
                     </div>
@@ -245,15 +227,15 @@ export default function ConfirmationForm({
               return formData.selectedElectives.length > 0;
             })() && (
               <div className="p-3 sm:p-4 border-t">
-                <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm">Elective Subjects</h4>
+                <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm bg-gray-100 px-2 py-1 rounded inline-block">Elective Subjects</h4>
                 <div className="space-y-2 sm:space-y-3">
                   {formData.selectedElectives.map((subject) => {
                     const displayName = getElectiveSubjectName(subject);
                     console.log('📋 Displaying elective:', { subject, displayName, grade: formData.electiveGrades[subject] });
                     return (
                       <div key={subject} className="flex justify-between items-center">
-                        <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">{displayName}</span>
-                        <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded flex-shrink-0 ml-2">
+                        <span className="text-[10px] sm:text-xs font-medium text-gray-700 truncate">{displayName}</span>
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-800 rounded flex-shrink-0 ml-2">
                           {formData.electiveGrades[subject] || 'Not graded'}
                         </span>
                       </div>

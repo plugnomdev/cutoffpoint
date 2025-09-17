@@ -14,10 +14,10 @@ interface GradeInputStepProps {
 
 type InputMethod = 'upload' | 'manual';
 
-export default function GradeInputStep({ formData, updateFields, onComplete }: GradeInputStepProps) {
+export default function GradeInputStep({ formData, updateFields, onComplete: _onComplete }: GradeInputStepProps) {
   const { coreSubjects, electiveSubjects } = useChecker();
 
-  const [inputMethod, setInputMethod] = useState<InputMethod>('upload');
+  const [inputMethod, setInputMethod] = useState<InputMethod>(formData.gradeEntryMethod || 'upload');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
@@ -135,22 +135,30 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
 
     // Use the already-matched subjects from the preview (don't call AI again)
     const coreSubjectsMap: Record<number, string> = {};
+    const coreSubjectNamesMap: Record<number, string> = {};
     const electiveGrades: Record<string, string> = {};
     const selectedElectives: string[] = [];
 
     matchedSubjects.forEach((subject) => {
 
       if (subject.matchedSubject) {
-        if (subject.matchedSubject.type === 1) {
-          // Core subject - use API subject ID
+        // If the original extracted subject name contains 'elect', it's ALWAYS elective
+        const isElectiveByOriginalName = subject.name.toLowerCase().includes('elect');
+        
+        if (isElectiveByOriginalName) {
+          // Elective subject - use API subject name as key
+          electiveGrades[subject.matchedSubject.name] = subject.grade;
+          selectedElectives.push(subject.matchedSubject.name);
+        } else if (subject.matchedSubject.type === 1) {
+          // Core subject - use API subject ID and save subject name
           coreSubjectsMap[subject.matchedSubject.id] = subject.grade;
+          coreSubjectNamesMap[subject.matchedSubject.id] = subject.matchedSubject.name;
         } else if (subject.matchedSubject.type === 2) {
-          // Elective subject - ALWAYS use API subject name as key (not extracted name)
+          // Elective subject - use API subject name as key
           electiveGrades[subject.matchedSubject.name] = subject.grade;
           selectedElectives.push(subject.matchedSubject.name);
         } else {
           // Type is undefined - check if it's an elective by ID range or name
-          // Elective subjects typically have higher IDs or specific names
           const isLikelyElective = subject.matchedSubject.id > 10 ||
             subject.name.toLowerCase().includes('rel') ||
             subject.name.toLowerCase().includes('stud') ||
@@ -164,6 +172,7 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
           } else {
             // Default to core if unsure
             coreSubjectsMap[subject.matchedSubject.id] = subject.grade;
+            coreSubjectNamesMap[subject.matchedSubject.id] = subject.matchedSubject.name;
           }
         }
       } else {
@@ -177,22 +186,12 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
 
     updateFields({
       coreSubjects: coreSubjectsMap,
+      coreSubjectNames: coreSubjectNamesMap,
       electiveGrades,
       selectedElectives
     });
 
     setGradesConfirmed(true);
-  };
-
-  const handleManualComplete = () => {
-    // Check if required grades are filled
-    const hasCoreGrades = Object.values(formData.coreSubjects).some(grade => grade);
-    const hasElectives = formData.selectedElectives.length > 0 && Object.values(formData.electiveGrades).some(grade => grade);
-
-    if (hasCoreGrades || hasElectives) {
-      setGradesConfirmed(true);
-      onComplete();
-    }
   };
 
   if (gradesConfirmed && inputMethod === 'upload') {
@@ -211,15 +210,6 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
             <CheckCircle className="w-5 h-5 text-green-600" />
             <span className="text-green-800 font-medium">Ready to proceed to background information</span>
           </div>
-        </div>
-
-        <div className="flex justify-end">
-          <button
-            onClick={onComplete}
-            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            Continue
-          </button>
         </div>
       </div>
     );
@@ -242,7 +232,17 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
             AI Upload
           </button>
           <button
-            onClick={() => setInputMethod('manual')}
+            onClick={() => {
+              setInputMethod('manual');
+              // Clear upload data when switching to manual mode
+              updateFields({
+                coreSubjects: {},
+                coreSubjectNames: {},
+                electiveGrades: {},
+                selectedElectives: [],
+                gradeEntryMethod: 'manual'
+              });
+            }}
             className={`flex items-center px-4 py-2 rounded-md font-medium transition-colors ${
               inputMethod === 'manual'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -412,20 +412,12 @@ export default function GradeInputStep({ formData, updateFields, onComplete }: G
 
       {inputMethod === 'manual' && (
         <div className="space-y-6">
+          {/* Always show manual form when inputMethod is manual */}
           <CombinedSubjectsForm
             coreSubjects={coreSubjects}
             {...formData.coreSubjects}
             updateFields={updateFields}
           />
-
-          <div className="flex justify-end">
-            <button
-              onClick={handleManualComplete}
-              className="flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
-            >
-              Continue
-            </button>
-          </div>
         </div>
       )}
     </div>

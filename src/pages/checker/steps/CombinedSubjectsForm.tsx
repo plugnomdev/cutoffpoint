@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Subject, Grade, fetchSubjectsByType } from '../../../services/api/universityApi';
+import { Subject, fetchSubjectsByType } from '../../../services/api/universityApi';
 import { CoreSubjects } from '../types';
 import { useChecker } from '../CheckerContext';
 import { ChevronDown, Search, X, ChevronUp } from 'lucide-react';
@@ -24,7 +24,6 @@ function SearchableSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [dropdownPosition, setDropdownPosition] = useState<'down' | 'up'>('down');
   const [dropdownStyles, setDropdownStyles] = useState({});
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -42,18 +41,14 @@ function SearchableSelect({
       const spaceBelow = viewportHeight - rect.bottom;
       const spaceAbove = rect.top;
 
-      let position: 'down' | 'up' = 'down';
       let top = 0;
 
       if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-        position = 'up';
         top = rect.top - dropdownHeight - 4; // 4px margin
       } else {
-        position = 'down';
         top = rect.bottom + 4; // 4px margin
       }
 
-      setDropdownPosition(position);
       setDropdownStyles({
         position: 'fixed',
         top: `${top}px`,
@@ -206,15 +201,14 @@ function SearchableSelect({
 
 type CombinedSubjectsFormProps = CoreSubjects & {
   coreSubjects: Subject[];
-  updateFields: (fields: { coreSubjects: CoreSubjects } | { selectedElectives: string[] } | { electiveGrades: Record<string, string> }) => void;
+  updateFields: (fields: { coreSubjects: CoreSubjects } | { coreSubjectNames: Record<number, string> } | { selectedElectives: string[] } | { electiveGrades: Record<string, string> }) => void;
 }
 
 export default function CombinedSubjectsForm({
-  coreSubjects,
-  updateFields,
-  ...grades
+  coreSubjects: _coreSubjects,
+  updateFields
 }: CombinedSubjectsFormProps) {
-  const { electiveSubjects, availableGrades, formData } = useChecker();
+  const { availableGrades, formData } = useChecker();
   const [fetchedCoreSubjects, setFetchedCoreSubjects] = useState<any[]>([]);
   const [fetchedElectiveSubjects, setFetchedElectiveSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -293,19 +287,25 @@ export default function CombinedSubjectsForm({
       return acc;
     }, {} as Record<number, string>);
 
+    // Create coreSubjectNames mapping for manual entry
+    const coreSubjectNames = Object.entries(coreGrades).reduce((acc, [key, grade]) => {
+      if (grade && key.startsWith('core_')) {
+        const subjectId = key.replace('core_', '');
+        const subject = fetchedCoreSubjects.find(s => s.id === parseInt(subjectId));
+        if (subject) {
+          acc[parseInt(subjectId)] = subject.name;
+        }
+      }
+      return acc;
+    }, {} as Record<number, string>);
+
     updateFields({
       coreSubjects: transformedCoreSubjects,
+      coreSubjectNames,
       selectedElectives: electiveSelections.filter(s => s),
       electiveGrades
     });
   }, [coreGrades, electiveSelections, electiveGrades]); // Removed updateFields from dependencies
-
-  const updateCoreGrade = (subject: string, grade: string) => {
-    setCoreGrades(prev => ({
-      ...prev,
-      [subject]: grade
-    }));
-  };
 
   const updateElective = (index: number, subjectName: string) => {
     const newSelections = [...electiveSelections];

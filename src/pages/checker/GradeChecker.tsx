@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import BackgroundForm from './steps/BackgroundForm';
 import GradeInputStep from './steps/GradeInputStep';
+import GradeEntryMethodStep from './steps/GradeEntryMethodStep';
 import ConfirmationForm from './steps/ConfirmationForm';
 import ResultsPage from './steps/ResultsPage';
 import { CheckerProvider } from './CheckerContext';
@@ -23,6 +24,7 @@ const INITIAL_DATA: FormData = {
     school: null
   },
   coreSubjects: {},
+  coreSubjectNames: {},
   selectedElectives: [],
   electiveGrades: {},
   paid: false,
@@ -178,6 +180,7 @@ export default function GradeChecker() {
   }, [formData.background.country]);
 
   const steps = [
+    'Choose Method',
     'Grade Input',
     'Background',
     'Review & Payment',
@@ -339,21 +342,29 @@ export default function GradeChecker() {
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-[#2d3192] mb-1">
-                    {currentStep === 0 && "Upload your results or enter grades manually"}
-                    {currentStep === 1 && (formData.background.fullName ? `Hello ${formData.background.fullName.split(' ')[0]}, kindly share more info below` : "Enter your background information")}
-                    {currentStep === 2 && "Review your details and complete payment"}
-                    {currentStep === 3 && "View your programme qualification results"}
+                    {currentStep === 0 && "Choose ONE to enter your results"}
+                    {currentStep === 1 && "Enter your WASSCE grades"}
+                    {currentStep === 2 && (formData.background.fullName ? `Hello ${formData.background.fullName.split(' ')[0]}, kindly share more info below` : "Enter your background information")}
+                    {currentStep === 3 && "Review your details and complete payment"}
+                    {currentStep === 4 && "View your programme qualification results"}
                   </h4>
                   <p className="text-xs text-[#2d3192]/80">
-                    {currentStep === 0 && "Upload a photo or PDF of your results for automatic processing, or enter grades manually."}
-                    {currentStep === 1 && "This helps us determine your eligibility for programmes in your selected school."}
-                    {currentStep === 2 && "Review your information and complete secure payment to get your results."}
-                    {currentStep === 3 && "See which programmes you're qualified for based on your WASSCE grades."}
+                    {currentStep === 0 && "Choose manual if you don't have an image or PDF of your results"}
+                    {currentStep === 1 && "Add your grades for Core and Elective subjects to check your eligibility."}
+                    {currentStep === 2 && "This helps us determine your eligibility for programmes in your selected school."}
+                    {currentStep === 3 && "Review your information and complete secure payment to get your results."}
+                    {currentStep === 4 && "See which programmes you're qualified for based on your WASSCE grades."}
                   </p>
                 </div>
               </div>
             </div>
             {currentStep === 0 && (
+              <GradeEntryMethodStep
+                onComplete={next}
+              />
+            )}
+
+            {currentStep === 1 && (
               <GradeInputStep
                 formData={formData}
                 updateFields={updateFields}
@@ -361,7 +372,7 @@ export default function GradeChecker() {
               />
             )}
 
-            {currentStep === 1 && (
+            {currentStep === 2 && (
               <BackgroundForm
                 countries={countries}
                 schools={schools}
@@ -373,7 +384,7 @@ export default function GradeChecker() {
               />
             )}
 
-            {currentStep === 2 && (
+            {currentStep === 3 && (
               <ConfirmationForm
                 formData={formData}
                 onPaymentComplete={() => setPaymentCompleted(true)}
@@ -381,7 +392,7 @@ export default function GradeChecker() {
               />
             )}
 
-            {currentStep === 3 && <ResultsPage />}
+            {currentStep === 4 && <ResultsPage />}
 
             {/* Auto-save indicator */}
             {saved && (
@@ -393,7 +404,7 @@ export default function GradeChecker() {
               </div>
             )}
 
-            {/* Navigation Buttons - Ghana Inspired - Hide on first step since GradeInputStep has its own buttons */}
+            {/* Navigation Buttons - Ghana Inspired */}
             {currentStep > 0 && (
               <div className="mt-6 sm:mt-8 flex items-center justify-between">
                 <button
@@ -418,14 +429,14 @@ export default function GradeChecker() {
                   <button
                     type="button"
                     onClick={next}
-                    disabled={currentStep === 2 && !paymentCompleted}
+                    disabled={currentStep === 3 && !paymentCompleted}
                     className={`flex items-center justify-center px-3 sm:px-8 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-lg transform hover:scale-105 ${
-                      currentStep === 2 && !paymentCompleted
+                      currentStep === 3 && !paymentCompleted
                         ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
                         : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
                     }`}
                   >
-                    <span className="text-xs sm:text-sm">{currentStep === 2 ? 'View Cut-off Points' : 'Continue'}</span>
+                    <span className="text-xs sm:text-sm">{currentStep === 3 ? 'View Cut-off Points' : 'Continue'}</span>
                     <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
                   </button>
                 ) : (
