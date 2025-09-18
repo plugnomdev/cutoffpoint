@@ -8,7 +8,12 @@ import { useAuth } from './context/AuthContext';
 import GradeChecker from './pages/checker/GradeChecker';
 import PreviousChecks from './pages/checker/PreviousChecks';
 import ResultsPage from './pages/checker/steps/ResultsPage';
-import { CheckerProvider } from './pages/checker/CheckerContext';
+import StudyGhana from './pages/StudyGhana';
+import About from './pages/About';
+import Disclaimer from './pages/Disclaimer';
+import Policy from './pages/Policy';
+import NotFound from './pages/NotFound';
+
 
 function ProtectedRoute() {
   const { isAuthenticated } = useAuth();
@@ -40,6 +45,22 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <HomePage />
+  },
+  {
+    path: '/study-ghana',
+    element: <StudyGhana />
+  },
+  {
+    path: '/about',
+    element: <About />
+  },
+  {
+    path: '/disclaimer',
+    element: <Disclaimer />
+  },
+  {
+    path: '/policy',
+    element: <Policy />
   },
 
   {
@@ -82,6 +103,10 @@ export const router = createBrowserRouter([
         ]
       }
     ]
+  },
+  {
+    path: '*',
+    element: <NotFound />
   }
 ], {
   future: {
