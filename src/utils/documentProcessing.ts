@@ -4,6 +4,17 @@ import * as pdfjsLib from 'pdfjs-dist';
 // Set the worker source to local file
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.js';
 
+// Gemini API Configuration - Restrict to Flash model only
+const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+// Model validation function to ensure only Flash is used
+function validateGeminiModel(model: string): void {
+  if (model !== 'gemini-1.5-flash') {
+    throw new Error(`Invalid Gemini model: ${model}. Only gemini-1.5-flash is allowed for cost control.`);
+  }
+}
+
 export interface ParsedDocumentData {
   extractedSubjects: Array<{
     name: string;
@@ -18,7 +29,8 @@ export interface ParsedDocumentData {
 
 // AI-powered parsing using Google Gemini API
 async function parseWithAI(text: string): Promise<ParsedDocumentData> {
-  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+  // Validate model before making API call
+  validateGeminiModel(GEMINI_MODEL);
 
   const prompt = `Extract student information, course offered, and grades from this WASSCE results document. Return ONLY a valid JSON object with this exact structure:
 
@@ -42,7 +54,7 @@ ${text}
 Return ONLY the JSON object, no explanations or additional text.`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -123,9 +135,11 @@ export async function processImageFile(file: File): Promise<ParsedDocumentData> 
   try {
     // Try AI-powered parsing first
     const base64Image = await fileToBase64(file);
-    const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
     if (GEMINI_API_KEY) {
+      // Validate model before making API call
+      validateGeminiModel(GEMINI_MODEL);
+
       const prompt = `Analyze this WASSCE results image and extract the student information, course offered, and grades. Return ONLY a valid JSON object with this exact structure:
 
 {
@@ -144,7 +158,7 @@ export async function processImageFile(file: File): Promise<ParsedDocumentData> 
 
 Look for the RESULTS section and extract subject names with their corresponding grades. Also look for the course/program offered (like Science, Arts, Business, etc.). Return ONLY the JSON object, no explanations or additional text.`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -350,8 +364,6 @@ export async function matchSubjectsWithAI(
   extractedSubjects: Array<{ name: string; grade: string }>,
   apiSubjects: Array<{ id: number; name: string; subject_code: string; type: number }>
 ): Promise<Array<{ name: string; grade: string; matchedSubject?: { id: number; name: string; subject_code: string; type: number } }>> {
-  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
   if (!GEMINI_API_KEY) {
     return extractedSubjects.map(subject => ({
       ...subject,
@@ -360,6 +372,9 @@ export async function matchSubjectsWithAI(
   }
 
   try {
+    // Validate model before making API call
+    validateGeminiModel(GEMINI_MODEL);
+
     // Prepare the prompt for AI matching
     const subjectsList = apiSubjects.map(s => `${s.name} (ID: ${s.id}, Type: ${s.type === 1 ? 'Core' : 'Elective'})`).join('\n');
     const extractedList = extractedSubjects.map(s => `${s.name}: ${s.grade}`).join('\n');
@@ -405,7 +420,7 @@ Example output:
 
 Return ONLY the JSON array, no explanations.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
