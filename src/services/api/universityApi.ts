@@ -310,6 +310,38 @@ export interface QualificationResult {
   };
 }
 
+export interface PastCheckResponse {
+  success: boolean;
+  message: string;
+  data: {
+    check_code: string;
+    index_number: string;
+    phone_number: string;
+    date: string;
+    payment_status: string;
+    summary: {
+      total_score: number;
+      core_score: number;
+      elective_score: number;
+      core_grades: number[];
+      elective_grades: number[];
+    };
+    qualified_programs: Array<{
+      id: number;
+      name: string;
+      description: string;
+      max_grade: number;
+      link: string;
+      apply_link: string;
+    }>;
+    total_qualified: number;
+    school: {
+      id: number;
+      name: string;
+    };
+  };
+}
+
 
 // Grade Check API Functions
 export async function createInitialOrder(request: InitialOrderRequest): Promise<InitialOrderResponse> {
@@ -352,4 +384,25 @@ export async function completeGradeCheck(request: GradeCheckRequest): Promise<Gr
     throw new Error(errorMessage);
   }
   return data.data;
+}
+
+export async function fetchPastCheck(code?: string, phone?: string): Promise<PastCheckResponse> {
+  const params = new URLSearchParams();
+  if (code) params.append('code', code);
+  if (phone) params.append('phone', phone);
+
+  const response = await fetch(`https://cutoffpoint.com.gh/api/v1/past-check?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${tokenData.access_token}`,
+    },
+  });
+  const data = await response.json();
+  console.log('API Response from /past-check:', data);
+
+  if (!data.success) {
+    const errorMessage = data.message || 'Failed to fetch past check';
+    console.error('API Error details:', data);
+    throw new Error(errorMessage);
+  }
+  return data;
 }

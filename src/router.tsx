@@ -8,6 +8,7 @@ import { useAuth } from './context/AuthContext';
 import GradeChecker from './pages/checker/GradeChecker';
 import PreviousChecks from './pages/checker/PreviousChecks';
 import ResultsPage from './pages/checker/steps/ResultsPage';
+import { CheckerProvider } from './pages/checker/CheckerContext';
 
 function ProtectedRoute() {
   const { isAuthenticated } = useAuth();

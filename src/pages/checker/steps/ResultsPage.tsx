@@ -2,12 +2,24 @@ import { useChecker } from '../CheckerContext';
 import { CheckCircle, XCircle, ArrowRight, ChevronDown, Download, Printer } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import { useEffect, useState } from 'react';
-import { QualificationResult } from '../../../services/api/universityApi';
+import { QualificationResult, fetchPastCheck } from '../../../services/api/universityApi';
+import { useNavigate, useParams } from 'react-router-dom';
 
 type ResultsPageProps = Record<string, never>;
 
 export default function ResultsPage(_props: ResultsPageProps) {
-  const { resetForm } = useChecker();
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+
+  // Handle case where CheckerProvider is not available (e.g., from PreviousChecks)
+  let resetForm: (() => void) | null = null;
+  try {
+    const checkerContext = useChecker();
+    resetForm = checkerContext.resetForm;
+  } catch (error) {
+    // Context not available, provide fallback
+    resetForm = () => navigate('/checker');
+  }
   const [result, setResult] = useState<QualificationResult | null>(null);
   const [showAllProgrammes, setShowAllProgrammes] = useState(false);
   const [expandedGrades, setExpandedGrades] = useState<Set<number>>(new Set());
@@ -27,51 +39,80 @@ export default function ResultsPage(_props: ResultsPageProps) {
   };
 
   useEffect(() => {
-    // Check for results from payment callback or stored results
-    const urlParams = new URLSearchParams(window.location.search);
-    const checkCode = urlParams.get('check_code');
-    const status = urlParams.get('status');
+    const loadResults = async () => {
+      // Check for results from payment callback or stored results
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentCheckCode = urlParams.get('check_code');
+      const status = urlParams.get('status');
 
-    if (checkCode && status === 'success') {
-      // Payment was successful, fetch results using the check code
-      console.log('Payment successful, check code:', checkCode);
-      // In a real implementation, you would call an API to get results by check code
-      // For now, we'll show a success message
-      setResult({
-        check_code: checkCode,
-        school: { id: 1, name: 'School Name' },
-        country: { id: 1, name: 'Country', code: 'GHA', flag: '🇬🇭' },
-        summary: {
-          core_grades: [],
-          elective_grades: [],
-          core_score: 0,
-          elective_score: 0,
-          total_score: 0
-        },
-        qualified_programs: [],
-        total_qualified: 0,
-        payment: { amount: 12, currency: 'GHS', payment_link: '' }
-      });
-    } else if (status === 'failed') {
-      // Payment failed
-      console.log('Payment failed');
-      // Show error message
-    } else {
-      // Check for stored results (fallback)
-      const storedResult = localStorage.getItem('qualificationResult');
-      if (storedResult) {
+      // Check if we have a check code from URL params (from PreviousChecks navigation)
+      if (id && !paymentCheckCode) {
+        // This is a previous check - fetch results using the check code
+        console.log('Fetching previous check results for code:', id);
         try {
-          const parsedResult = JSON.parse(storedResult);
-          setResult(parsedResult);
-          localStorage.removeItem('qualificationResult');
+          const pastCheckResponse = await fetchPastCheck(id);
+          if (pastCheckResponse.success && pastCheckResponse.data) {
+            // Transform the past check data to QualificationResult format
+            const transformedResult: QualificationResult = {
+              check_code: pastCheckResponse.data.check_code,
+              school: pastCheckResponse.data.school,
+              country: { id: 1, name: 'Ghana', code: 'GHA', flag: '🇬🇭' }, // Default country
+              summary: pastCheckResponse.data.summary,
+              qualified_programs: pastCheckResponse.data.qualified_programs,
+              total_qualified: pastCheckResponse.data.total_qualified,
+              payment: { amount: 0, currency: 'GHS', payment_link: '' } // No payment needed for past checks
+            };
+            setResult(transformedResult);
+            return;
+          }
         } catch (error) {
-          console.error('Failed to parse stored result:', error);
+          console.error('Failed to fetch past check results:', error);
         }
-      } else {
-        console.log('No results available - payment not completed');
       }
-    }
-  }, []);
+
+      if (paymentCheckCode && status === 'success') {
+        // Payment was successful, fetch results using the check code
+        console.log('Payment successful, check code:', paymentCheckCode);
+        // In a real implementation, you would call an API to get results by check code
+        // For now, we'll show a success message
+        setResult({
+          check_code: paymentCheckCode,
+          school: { id: 1, name: 'School Name' },
+          country: { id: 1, name: 'Country', code: 'GHA', flag: '🇬🇭' },
+          summary: {
+            core_grades: [],
+            elective_grades: [],
+            core_score: 0,
+            elective_score: 0,
+            total_score: 0
+          },
+          qualified_programs: [],
+          total_qualified: 0,
+          payment: { amount: 12, currency: 'GHS', payment_link: '' }
+        });
+      } else if (status === 'failed') {
+        // Payment failed
+        console.log('Payment failed');
+        // Show error message
+      } else {
+        // Check for stored results (fallback)
+        const storedResult = localStorage.getItem('qualificationResult');
+        if (storedResult) {
+          try {
+            const parsedResult = JSON.parse(storedResult);
+            setResult(parsedResult);
+            localStorage.removeItem('qualificationResult');
+          } catch (error) {
+            console.error('Failed to parse stored result:', error);
+          }
+        } else {
+          console.log('No results available - payment not completed');
+        }
+      }
+    };
+
+    loadResults();
+  }, [id]);
 
 
   const handlePrint = () => {
@@ -350,6 +391,9 @@ export default function ResultsPage(_props: ResultsPageProps) {
 
 
   if (!result) {
+    // Check if we're viewing a previous check
+    const isPreviousCheck = id && !new URLSearchParams(window.location.search).get('check_code');
+
     return (
       <div className="flex flex-col items-center justify-center min-h-64 space-y-6">
         <div className="text-center">
@@ -358,15 +402,27 @@ export default function ResultsPage(_props: ResultsPageProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Processing Results</h3>
-          <p className="text-gray-600 mb-4">We're retrieving your qualification results from our secure servers.</p>
-          <p className="text-sm text-gray-500 mb-6">If you were redirected here after payment, your results should appear shortly. If not, please check your payment status.</p>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            {isPreviousCheck ? 'Retrieving Previous Check' : 'Processing Results'}
+          </h3>
+          <p className="text-gray-600 mb-4">
+            {isPreviousCheck
+              ? 'We\'re fetching your previous qualification check results.'
+              : 'We\'re retrieving your qualification results from our secure servers.'
+            }
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            {isPreviousCheck
+              ? 'Your previous check results should appear shortly.'
+              : 'If you were redirected here after payment, your results should appear shortly. If not, please check your payment status.'
+            }
+          </p>
           <div className="space-y-3">
             <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-lg">
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Payment initiated successfully
+              {isPreviousCheck ? 'Check code verified' : 'Payment initiated successfully'}
             </div>
             <button
               onClick={() => window.history.back()}
@@ -405,8 +461,18 @@ export default function ResultsPage(_props: ResultsPageProps) {
       `}</style>
       {/* Header */}
       <div className="text-center bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 sm:p-8 rounded-xl">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">🎓 Programme Cut-off</h1>
-        <p className="text-blue-100 text-sm sm:text-base">Here are the programmes you qualify for in {selectedInstitution}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+          {id && !new URLSearchParams(window.location.search).get('check_code')
+            ? '🎓 Previous Check Results'
+            : '🎓 Programme Cut-off'
+          }
+        </h1>
+        <p className="text-blue-100 text-sm sm:text-base">
+          {id && !new URLSearchParams(window.location.search).get('check_code')
+            ? `Viewing your previous qualification check for ${selectedInstitution}`
+            : `Here are the programmes you qualify for in ${selectedInstitution}`
+          }
+        </p>
       </div>
 
 
@@ -616,8 +682,18 @@ export default function ResultsPage(_props: ResultsPageProps) {
       <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200">
         <div className="flex flex-col gap-4 sm:gap-6">
           <div className="text-center">
-            <h4 className="font-medium text-gray-900 mb-1 text-sm sm:text-base">Need to make changes?</h4>
-            <p className="text-xs sm:text-sm text-gray-600">You can update your information and check again</p>
+            <h4 className="font-medium text-gray-900 mb-1 text-sm sm:text-base">
+              {id && !new URLSearchParams(window.location.search).get('check_code')
+                ? 'Previous Check Completed'
+                : 'Need to make changes?'
+              }
+            </h4>
+            <p className="text-xs sm:text-sm text-gray-600">
+              {id && !new URLSearchParams(window.location.search).get('check_code')
+                ? 'This is a record of your previous qualification check'
+                : 'You can update your information and check again'
+              }
+            </p>
           </div>
 
           {/* Action Buttons */}
@@ -644,7 +720,7 @@ export default function ResultsPage(_props: ResultsPageProps) {
             {/* Secondary Action */}
             <Button
               variant="outline"
-              onClick={resetForm}
+              onClick={() => resetForm && resetForm()}
               className="w-full py-3 sm:py-2 text-sm sm:text-base"
             >
               Start Over

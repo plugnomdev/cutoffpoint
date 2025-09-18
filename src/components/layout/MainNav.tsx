@@ -1,7 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Phone } from 'lucide-react';
 import Logo from '../ui/Logo';
-import Button from '../ui/Button';
 import { useState } from 'react';
 
 export default function MainNav() {

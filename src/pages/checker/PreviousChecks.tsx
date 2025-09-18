@@ -1,56 +1,50 @@
 import { Clock, School, ArrowRight, Filter, Search, Loader, X, ChevronUp, ChevronDown } from 'lucide-react';
 import Button from '../../components/ui/Button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MainLayout from '../../components/layout/MainLayout';
 import { Helmet } from 'react-helmet-async';
+import { fetchPastCheck, PastCheckResponse, fetchCountries, fetchSchoolsByCountry, Country, School as SchoolType } from '../../services/api/universityApi';
 
-// Move previousChecks into a mock database object
-const MOCK_DB = {
-  '0244348539': [
-    {
-      id: 1,
-      date: '2024-02-15',
-      school: 'KNUST',
-      qualifiedPrograms: 12,
-      totalPrograms: 25,
-      status: 'Qualified',
-      aggregate: 12,
-      cutoff: 15
-    },
-    {
-      id: 2,
-      date: '2024-02-14',
-      school: 'University of Ghana',
-      qualifiedPrograms: 0,
-      totalPrograms: 18,
-      status: 'Not Qualified',
-      aggregate: 15,
-      cutoff: 12
-    },
-    {
-      id: 3,
-      date: '2024-02-13',
-      school: 'University of Cape Coast',
-      qualifiedPrograms: 8,
-      totalPrograms: 15,
-      status: 'Qualified',
-      aggregate: 8,
-      cutoff: 10
-    }
-  ]
-};
+// Define the type for previous checks from API
+interface PreviousCheck {
+  check_code: string;
+  index_number: string;
+  phone_number: string;
+  date: string;
+  payment_status: string;
+  summary: {
+    total_score: number;
+    core_score: number;
+    elective_score: number;
+    core_grades: number[];
+    elective_grades: number[];
+  };
+  qualified_programs: Array<{
+    id: number;
+    name: string;
+    description: string;
+    max_grade: number;
+    link: string;
+    apply_link: string;
+  }>;
+  total_qualified: number;
+  school: {
+    id: number;
+    name: string;
+  };
+}
 
-// Add filter options
-const FILTER_OPTIONS = {
-  schools: ['KNUST', 'University of Ghana', 'University of Cape Coast'],
-  countries: ['Ghana', 'Nigeria']
-};
-
+// Dynamic filter options from API
 export default function PreviousChecks() {
+  const navigate = useNavigate();
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [schools, setSchools] = useState<SchoolType[]>([]);
+  const [loadingFilters, setLoadingFilters] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [previousChecks, setPreviousChecks] = useState<typeof MOCK_DB['0244348539']>([]);
+  const [previousChecks, setPreviousChecks] = useState<PreviousCheck[]>([]);
   const [error, setError] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -59,30 +53,74 @@ export default function PreviousChecks() {
   });
   const [showSearch, setShowSearch] = useState(true);
 
-  const handleSearch = (e: React.FormEvent) => {
+  // Fetch countries on component mount
+  useEffect(() => {
+    const loadCountries = async () => {
+      try {
+        setLoadingFilters(true);
+        const countriesData = await fetchCountries();
+        setCountries(countriesData);
+      } catch (error) {
+        console.error('Failed to fetch countries:', error);
+      } finally {
+        setLoadingFilters(false);
+      }
+    };
+    loadCountries();
+  }, []);
+
+  // Fetch schools when country changes
+  useEffect(() => {
+    const loadSchools = async () => {
+      if (filters.country) {
+        const selectedCountry = countries.find(c => c.name === filters.country);
+        if (selectedCountry) {
+          try {
+            setLoadingFilters(true);
+            const schoolsData = await fetchSchoolsByCountry(selectedCountry.id);
+            setSchools(schoolsData || []);
+          } catch (error) {
+            console.error('Failed to fetch schools:', error);
+            setSchools([]);
+          } finally {
+            setLoadingFilters(false);
+          }
+        }
+      } else {
+        setSchools([]);
+      }
+    };
+    loadSchools();
+  }, [filters.country, countries]);
+
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
     setError('');
 
-    // Simulate API call
-    setTimeout(() => {
-      const results = MOCK_DB[searchInput as keyof typeof MOCK_DB];
-      
-      if (results) {
-        setPreviousChecks(results);
+    try {
+      // Determine if input is phone or code
+      const isPhone = searchInput.startsWith('+') || /^\d{10,}$/.test(searchInput);
+      const response = await fetchPastCheck(isPhone ? undefined : searchInput, isPhone ? searchInput : undefined);
+
+      if (response.success && response.data) {
+        setPreviousChecks([response.data]);
         setHasSearched(true);
       } else {
         setError('No checks found for this number. Please verify and try again.');
         setPreviousChecks([]);
       }
-      
-      setIsSearching(false);
-    }, 1500);
+    } catch (err) {
+      setError('Failed to fetch past checks. Please try again.');
+      setPreviousChecks([]);
+    }
+
+    setIsSearching(false);
   };
 
   // Filter the checks based on selected filters
   const filteredChecks = previousChecks.filter(check => {
-    if (filters.school && check.school !== filters.school) return false;
+    if (filters.school && check.school.name !== filters.school) return false;
     // Add country filter when data includes country
     return true;
   });
@@ -92,6 +130,15 @@ export default function PreviousChecks() {
       school: '',
       country: ''
     });
+  };
+
+  // Clear school filter when country changes
+  const handleCountryChange = (countryName: string) => {
+    setFilters(prev => ({
+      ...prev,
+      country: countryName,
+      school: '' // Clear school when country changes
+    }));
   };
 
   return (
@@ -184,9 +231,6 @@ export default function PreviousChecks() {
                         {error}
                       </div>
                     )}
-                    <div className="text-sm text-gray-500">
-                      Try with demo number: 0244348539
-                    </div>
                   </form>
                 </div>
               )}
@@ -241,11 +285,14 @@ export default function PreviousChecks() {
                               value={filters.school}
                               onChange={(e) => setFilters(prev => ({ ...prev, school: e.target.value }))}
                               className="w-full p-2 border rounded-lg text-sm"
+                              disabled={loadingFilters}
                             >
-                              <option value="">All Schools</option>
-                              {FILTER_OPTIONS.schools.map(school => (
-                                <option key={school} value={school}>
-                                  {school}
+                              <option value="">
+                                {loadingFilters ? 'Loading schools...' : 'All Schools'}
+                              </option>
+                              {schools.map(school => (
+                                <option key={school.id} value={school.name}>
+                                  {school.name}
                                 </option>
                               ))}
                             </select>
@@ -258,13 +305,16 @@ export default function PreviousChecks() {
                             </label>
                             <select
                               value={filters.country}
-                              onChange={(e) => setFilters(prev => ({ ...prev, country: e.target.value }))}
+                              onChange={(e) => handleCountryChange(e.target.value)}
                               className="w-full p-2 border rounded-lg text-sm"
+                              disabled={loadingFilters}
                             >
-                              <option value="">All Countries</option>
-                              {FILTER_OPTIONS.countries.map(country => (
-                                <option key={country} value={country}>
-                                  {country}
+                              <option value="">
+                                {loadingFilters ? 'Loading countries...' : 'All Countries'}
+                              </option>
+                              {countries.map(country => (
+                                <option key={country.id} value={country.name}>
+                                  {country.name}
                                 </option>
                               ))}
                             </select>
@@ -303,8 +353,8 @@ export default function PreviousChecks() {
                         </div>
                       )}
                     </div>
-                    <Button 
-                      onClick={() => window.location.href = '/checker'}
+                    <Button
+                      onClick={() => navigate('/checker')}
                       className="w-full sm:w-auto"
                     >
                       New Check
@@ -321,84 +371,90 @@ export default function PreviousChecks() {
                   <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm min-w-[160px] sm:min-w-0">
                     <div className="text-xs sm:text-sm text-gray-500 mb-1">Qualified Schools</div>
                     <div className="text-lg sm:text-2xl font-bold text-green-600">
-                      {previousChecks.filter(check => check.status === 'Qualified').length}
+                      {previousChecks.filter(check => check.total_qualified > 0).length}
                     </div>
                   </div>
                   <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm min-w-[160px] sm:min-w-0">
                     <div className="text-xs sm:text-sm text-gray-500 mb-1">Best Aggregate</div>
                     <div className="text-lg sm:text-2xl font-bold text-blue-600">
-                      {Math.min(...previousChecks.map(check => check.aggregate))}
+                      {Math.min(...previousChecks.map(check => check.summary.total_score))}
                     </div>
                   </div>
                 </div>
 
                 {/* Checks List */}
                 <div className="bg-white rounded-lg shadow-sm divide-y">
-                  {filteredChecks.map((check) => (
-                    <div
-                      key={check.id}
-                      className="p-4 sm:p-6 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Clock className="w-4 h-4" />
-                            <span>{new Date(check.date).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <School className="w-5 h-5 text-blue-600" />
-                            <span className="font-medium text-lg">{check.school}</span>
-                          </div>
-                          <div className="text-gray-600">
-                            {check.status === 'Qualified' 
-                              ? `You qualified for ${check.qualifiedPrograms || 0} programmes in this school`
-                              : `You did not qualify for any programmes in this school`
-                            }
-                          </div>
-                        </div>
-                        <div className="text-left sm:text-right space-y-3">
-                          <div className="flex sm:justify-end">
-                            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                              check.status === 'Qualified' 
-                                ? 'bg-green-100 text-green-700' 
-                                : 'bg-red-100 text-red-700'
-                            }`}>
-                              {check.status}
+                  {filteredChecks.map((check) => {
+                    const isQualified = check.total_qualified > 0;
+                    const status = isQualified ? 'Qualified' : 'Not Qualified';
+                    const minCutoff = check.qualified_programs.length > 0 ? Math.min(...check.qualified_programs.map(p => p.max_grade)) : 'N/A';
+
+                    return (
+                      <div
+                        key={check.check_code}
+                        className="p-4 sm:p-6 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <Clock className="w-4 h-4" />
+                              <span>{new Date(check.date).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}</span>
                             </div>
-                          </div>
-                          <div className="flex items-center sm:justify-end gap-4 sm:gap-8">
-                            <div>
-                              <div className="text-sm text-gray-500">Your Aggregate</div>
-                              <div className="text-lg font-bold text-gray-900">{check.aggregate}</div>
+                            <div className="flex items-center gap-2">
+                              <School className="w-5 h-5 text-blue-600" />
+                              <span className="font-medium text-lg">{check.school.name}</span>
                             </div>
-                            <div>
-                              <div className="text-sm text-gray-500">Minimum Cutoff Point</div>
-                              <div className="text-lg font-bold text-gray-900">{check.cutoff}</div>
-                            </div>
-                          </div>
-                          <Button 
-                            variant="outline" 
-                            className={`flex items-center gap-2 w-full sm:w-auto justify-center ${
-                              check.status !== 'Qualified' ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                            onClick={() => {
-                              if (check.status === 'Qualified') {
-                                window.location.href = `/checker/results/${check.id}`;
+                            <div className="text-gray-600">
+                              {isQualified
+                                ? `You qualified for ${check.total_qualified} programmes in this school`
+                                : `You did not qualify for any programmes in this school`
                               }
-                            }}
-                            disabled={check.status !== 'Qualified'}
-                          >
-                            View Programmes
-                            <ArrowRight className="w-4 h-4" />
-                          </Button>
+                            </div>
+                          </div>
+                          <div className="text-left sm:text-right space-y-3">
+                            <div className="flex sm:justify-end">
+                              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                isQualified
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {status}
+                              </div>
+                            </div>
+                            <div className="flex items-center sm:justify-end gap-4 sm:gap-8">
+                              <div>
+                                <div className="text-sm text-gray-500">Your Aggregate</div>
+                                <div className="text-lg font-bold text-gray-900">{check.summary.total_score}</div>
+                              </div>
+                              <div>
+                                <div className="text-sm text-gray-500">Minimum Cutoff Point</div>
+                                <div className="text-lg font-bold text-gray-900">{minCutoff}</div>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              className={`flex items-center gap-2 w-full sm:w-auto justify-center ${
+                                !isQualified ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                              onClick={() => {
+                                if (isQualified) {
+                                  navigate(`/checker/results/${check.check_code}`);
+                                }
+                              }}
+                              disabled={!isQualified}
+                            >
+                              View Programmes
+                              <ArrowRight className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             ) : hasSearched && previousChecks.length > 0 && filteredChecks.length === 0 ? (
