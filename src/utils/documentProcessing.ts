@@ -1,17 +1,16 @@
-import { createWorker } from 'tesseract.js';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Set the worker source to local file
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.js';
 
-// Gemini API Configuration - Restrict to Flash model only
-const GEMINI_MODEL = 'gemini-1.5-flash';
+// Gemini API Configuration - Use Lite model for cost optimization
+const GEMINI_MODEL = 'gemini-1.5-flash-8b';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-// Model validation function to ensure only Flash is used
+// Model validation function to ensure only Lite model is used
 function validateGeminiModel(model: string): void {
-  if (model !== 'gemini-1.5-flash') {
-    throw new Error(`Invalid Gemini model: ${model}. Only gemini-1.5-flash is allowed for cost control.`);
+  if (model !== 'gemini-1.5-flash-8b') {
+    throw new Error(`Invalid Gemini model: ${model}. Only gemini-1.5-flash-8b (Lite) is allowed for cost control.`);
   }
 }
 
@@ -125,22 +124,20 @@ Return ONLY the JSON object, no explanations or additional text.`;
   }
 }
 
-// Grade mappings for WASSCE format
-const GRADE_MAPPINGS: Record<string, string> = {
-  'a1': 'A1', 'b2': 'B2', 'b3': 'B3', 'c4': 'C4', 'c5': 'C5', 'c6': 'C6', 'd7': 'D7', 'e8': 'E8', 'f9': 'F9',
-  '1': 'A1', '2': 'B2', '3': 'B3', '4': 'C4', '5': 'C5', '6': 'C6', '7': 'D7', '8': 'E8', '9': 'F9'
-};
 
 export async function processImageFile(file: File): Promise<ParsedDocumentData> {
+  if (!GEMINI_API_KEY) {
+    throw new Error('Gemini API key is required for image processing');
+  }
+
   try {
-    // Try AI-powered parsing first
+    // Convert image to base64
     const base64Image = await fileToBase64(file);
 
-    if (GEMINI_API_KEY) {
-      // Validate model before making API call
-      validateGeminiModel(GEMINI_MODEL);
+    // Validate model before making API call
+    validateGeminiModel(GEMINI_MODEL);
 
-      const prompt = `Analyze this WASSCE results image and extract the student information, course offered, and grades. Return ONLY a valid JSON object with this exact structure:
+    const prompt = `Analyze this WASSCE results image and extract the student information, course offered, and grades. Return ONLY a valid JSON object with this exact structure:
 
 {
   "studentInfo": {
@@ -158,76 +155,82 @@ export async function processImageFile(file: File): Promise<ParsedDocumentData> 
 
 Look for the RESULTS section and extract subject names with their corresponding grades. Also look for the course/program offered (like Science, Arts, Business, etc.). Return ONLY the JSON object, no explanations or additional text.`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                text: prompt
-              },
-              {
-                inline_data: {
-                  mime_type: file.type,
-                  data: base64Image
-                }
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            {
+              text: prompt
+            },
+            {
+              inline_data: {
+                mime_type: file.type,
+                data: base64Image
               }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.1,
-            topK: 1,
-            topP: 1,
-            maxOutputTokens: 2048,
-          }
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-          const generatedText = data.candidates[0].content.parts[0].text;
-          let cleanText = generatedText.trim();
-
-          if (cleanText.startsWith('```json')) {
-            cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-          } else if (cleanText.startsWith('```')) {
-            cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-          }
-
-          const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsedData = JSON.parse(jsonMatch[0]);
-            if (parsedData.studentInfo && Array.isArray(parsedData.extractedSubjects)) {
-              return {
-                ...parsedData,
-                rawText: `Image processed by Gemini Vision API. Extracted ${parsedData.extractedSubjects.length} subjects.`
-              } as ParsedDocumentData;
             }
-          }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 1,
+          topP: 1,
+          maxOutputTokens: 2048,
         }
-      }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
-    // Fallback to OCR + regex parsing
-    const worker = await createWorker('eng');
-    try {
-      const { data: { text } } = await worker.recognize(file);
-      return parseDocumentText(text);
-    } finally {
-      await worker.terminate();
+    const data = await response.json();
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error('Invalid Gemini API response');
     }
+
+    const generatedText = data.candidates[0].content.parts[0].text;
+    let cleanText = generatedText.trim();
+
+    // Clean the response - remove markdown code blocks if present
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+
+    // Extract JSON from the cleaned text
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in Gemini response');
+    }
+
+    const parsedData = JSON.parse(jsonMatch[0]);
+
+    // Validate the response structure
+    if (!parsedData.studentInfo || !Array.isArray(parsedData.extractedSubjects)) {
+      throw new Error('Invalid response structure from Gemini');
+    }
+
+    return {
+      ...parsedData,
+      rawText: `Image processed by Gemini Lite Vision API. Extracted ${parsedData.extractedSubjects.length} subjects.`
+    } as ParsedDocumentData;
 
   } catch (error) {
-    console.error('Image processing failed:', error);
+    console.error('Gemini Vision processing failed:', error);
     throw new Error(`Image processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 export async function processPDFFile(file: File): Promise<ParsedDocumentData> {
+  if (!GEMINI_API_KEY) {
+    throw new Error('Gemini API key is required for PDF processing');
+  }
+
   try {
     const arrayBuffer = await file.arrayBuffer();
 
@@ -249,18 +252,8 @@ export async function processPDFFile(file: File): Promise<ParsedDocumentData> {
       fullText += pageText + ' ';
     }
 
-    // Try AI parsing first for PDFs
-    const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-    if (GEMINI_API_KEY) {
-      try {
-        return await parseWithAI(fullText);
-      } catch (aiError) {
-        console.warn('AI parsing failed for PDF, falling back to regex:', aiError);
-      }
-    }
-
-    // Fallback to regex parsing
-    return parseDocumentText(fullText);
+    // Use Gemini AI parsing for PDFs
+    return await parseWithAI(fullText);
   } catch (error) {
     console.error('PDF processing error:', error);
     throw new Error('Failed to process PDF file. Please ensure it\'s a valid PDF document with readable text.');
@@ -282,50 +275,6 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-function parseDocumentText(text: string): ParsedDocumentData {
-  const cleanText = text.toLowerCase().replace(/\s+/g, ' ').trim();
-
-  // Extract student name
-  const nameMatch = cleanText.match(/(?:name|candidate)[\s:]+([a-z\s]{3,50})/i);
-  const extractedName = nameMatch ? nameMatch[1].trim() : undefined;
-
-  const result: ParsedDocumentData = {
-    extractedSubjects: [],
-    studentInfo: {
-      name: extractedName,
-      certificateType: 'WASSCE'
-    },
-    rawText: text
-  };
-
-  // Extract subjects and grades
-  const subjectGradePattern = /([a-z\s]+?)\s*[:\-]?\s*([a-d]\d|\d)/gi;
-  const foundSubjects: Array<{ name: string; grade: string }> = [];
-
-  let match;
-  while ((match = subjectGradePattern.exec(cleanText)) !== null) {
-    const subjectName = match[1].trim();
-    const gradeValue = match[2].trim();
-
-    const cleanSubjectName = subjectName
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-
-    const mappedGrade = GRADE_MAPPINGS[gradeValue.toLowerCase()] || gradeValue.toUpperCase();
-
-    if (cleanSubjectName.length >= 3 && /^[A-F]\d$/.test(mappedGrade)) {
-      foundSubjects.push({ name: cleanSubjectName, grade: mappedGrade });
-    }
-  }
-
-  // Remove duplicates
-  result.extractedSubjects = foundSubjects.filter((subject, index, self) =>
-    index === self.findIndex(s => s.name.toLowerCase() === subject.name.toLowerCase())
-  );
-
-  return result;
-}
 
 export async function detectCountryFromIP(): Promise<string> {
   try {
