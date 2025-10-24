@@ -5,18 +5,13 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 
 type ConfirmationFormProps = {
   formData: FormData;
-  onPaymentComplete?: () => void;
-  paymentCompleted?: boolean;
 }
 
 export default function ConfirmationForm({
-  formData,
-  onPaymentComplete,
-  paymentCompleted = false
+  formData
 }: ConfirmationFormProps) {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [gradesExpanded, setGradesExpanded] = useState(false);
-  const [localPaymentCompleted, setLocalPaymentCompleted] = useState(paymentCompleted);
 
   // Helper function to get subject name by ID - use exactly what was matched in step 1
   const getSubjectName = (id: number) => {
@@ -127,16 +122,14 @@ export default function ConfirmationForm({
       const response = await submitQualificationCheck(checkRequest as any);
 
       console.log('Check Response:', response);
+      console.log('Response data structure:', response.data);
 
-      if (response.data.payment_link) {
-        // Set payment as completed locally
-        setLocalPaymentCompleted(true);
-        // Call parent callback to update navigation
-        onPaymentComplete?.();
-        // Redirect to payment gateway
-        window.location.href = response.data.payment_link;
+      if (response.data.payment?.payment_link) {
+        // Redirect to payment gateway immediately
+        window.location.href = response.data.payment.payment_link;
       } else {
-        throw new Error('Failed to get payment link');
+        console.error('API Response missing payment_link:', response);
+        throw new Error('Payment link not provided by server');
       }
     } catch (error) {
       console.error('Payment initiation failed:', error);
@@ -249,71 +242,52 @@ export default function ConfirmationForm({
       </div>
 
       {/* Payment Section */}
-      {localPaymentCompleted ? (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 sm:p-6 rounded-xl border border-green-200">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full mb-3 sm:mb-4">
-              <svg className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Payment Successful!</h3>
-            <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">Your cut-off points are ready to view</p>
-            <div className="bg-white p-2 sm:p-3 rounded-lg border border-gray-200 inline-block">
-              <div className="text-base sm:text-lg font-bold text-green-600">✓ Paid</div>
-            </div>
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 sm:p-6 rounded-xl border border-green-200">
+        <div className="text-center">
+          <div className="mb-3 sm:mb-4">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">Complete Payment</h3>
+            <p className="text-gray-600 text-xs sm:text-sm">Get instant access to programme cut-off points</p>
           </div>
-        </div>
-      ) : (
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 sm:p-6 rounded-xl border border-green-200">
-          <div className="text-center">
-            <div className="mb-3 sm:mb-4">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">Complete Payment</h3>
-              <p className="text-gray-600 text-xs sm:text-sm">Get instant access to programme cut-off points</p>
-            </div>
 
-            <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 inline-block mb-3 sm:mb-4 shadow-sm">
-              <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                GHS 12
-              </div>
-              <div className="text-xs sm:text-sm text-gray-600">Programme Cut-off Checker</div>
+          <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 inline-block mb-3 sm:mb-4 shadow-sm">
+            <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+              GHS 12
             </div>
+            <div className="text-xs sm:text-sm text-gray-600">Programme Cut-off Checker</div>
+          </div>
 
-            {/* Paystack Payment Image */}
-            <div className="mb-4">
-              <img
-                src="https://cutoffpoint.com.gh/site-assets/images/paystack.png"
-                alt="Secure payment powered by Paystack"
-                className="h-6 mx-auto opacity-80"
-              />
-            </div>
+          {/* Paystack Payment Image */}
+          <div className="mb-4">
+            <img
+              src="https://cutoffpoint.com.gh/site-assets/images/paystack.png"
+              alt="Secure payment powered by Paystack"
+              className="h-6 mx-auto opacity-80"
+            />
+          </div>
 
-            {!paymentProcessing ? (
-              <button
-                onClick={handlePayment}
-                className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md hover:shadow-lg text-sm sm:text-base"
-              >
+          <button
+            onClick={handlePayment}
+            disabled={paymentProcessing}
+            className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md hover:shadow-lg text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {paymentProcessing ? (
+              <>
+                <svg className="animate-spin w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Processing...
+              </>
+            ) : (
+              <>
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
-                Make Payment
-              </button>
-            ) : (
-              <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 inline-block">
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full mb-2">
-                    <svg className="animate-spin w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                  </div>
-                  <h4 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">Processing...</h4>
-                  <p className="text-gray-600 text-xs">Redirecting to payment gateway</p>
-                </div>
-              </div>
+                Pay & View Programmes
+              </>
             )}
-          </div>
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

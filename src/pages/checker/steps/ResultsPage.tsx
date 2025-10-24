@@ -44,6 +44,8 @@ export default function ResultsPage(_props: ResultsPageProps) {
       const urlParams = new URLSearchParams(window.location.search);
       const paymentCheckCode = urlParams.get('check_code');
       const status = urlParams.get('status');
+      const success = urlParams.get('success');
+      const error = urlParams.get('error');
 
       // Check if we have a check code from URL params (from PreviousChecks navigation)
       if (id && !paymentCheckCode) {
@@ -70,7 +72,7 @@ export default function ResultsPage(_props: ResultsPageProps) {
         }
       }
 
-      if (paymentCheckCode && status === 'success') {
+      if (paymentCheckCode && (status === 'success' || success === 'true')) {
         // Payment was successful, fetch results using the check code
         console.log('Payment successful, check code:', paymentCheckCode);
         // In a real implementation, you would call an API to get results by check code
@@ -90,7 +92,7 @@ export default function ResultsPage(_props: ResultsPageProps) {
           total_qualified: 0,
           payment: { amount: 12, currency: 'GHS', payment_link: '' }
         });
-      } else if (status === 'failed') {
+      } else if (status === 'failed' || error === 'true') {
         // Payment failed
         console.log('Payment failed');
         // Show error message
@@ -718,13 +720,25 @@ export default function ResultsPage(_props: ResultsPageProps) {
             </div>
 
             {/* Secondary Action */}
-            <Button
-              variant="outline"
-              onClick={() => resetForm && resetForm()}
-              className="w-full py-3 sm:py-2 text-sm sm:text-base"
-            >
-              Start Over
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                onClick={() => resetForm && resetForm()}
+                className="flex-1 py-3 sm:py-2 text-sm sm:text-base"
+              >
+                Start Over
+              </Button>
+
+              {/* Pay & View Programmes Button - Only show for new checks, not previous checks */}
+              {id && !new URLSearchParams(window.location.search).get('check_code') ? null : (
+                <button
+                  onClick={() => window.location.href = '/checker'}
+                  className="flex-1 inline-flex items-center justify-center px-4 py-3 sm:py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm hover:shadow-md text-sm sm:text-base"
+                >
+                  Pay & View Programmes
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

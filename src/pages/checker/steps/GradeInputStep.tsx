@@ -4,7 +4,7 @@ import { FileText, Edit, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { FormData } from '../types';
 import { useChecker } from '../CheckerContext';
 import CombinedSubjectsForm from './CombinedSubjectsForm';
-import { processImageFile, processPDFFile, ParsedDocumentData, matchSubjectsWithAI } from '../../../utils/documentProcessing';
+import { processImageFile, ParsedDocumentData, matchSubjectsWithAI } from '../../../utils/documentProcessing';
 
 interface GradeInputStepProps {
   formData: FormData;
@@ -48,8 +48,7 @@ export default function GradeInputStep({ formData, updateFields, onComplete: _on
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.jpeg', '.jpg', '.png'],
-      'application/pdf': ['.pdf']
+      'image/*': ['.jpeg', '.jpg', '.png']
     },
     multiple: false,
     maxSize: 10 * 1024 * 1024 // 10MB
@@ -64,10 +63,8 @@ export default function GradeInputStep({ formData, updateFields, onComplete: _on
 
       if (file.type.startsWith('image/')) {
         parsedData = await processImageFile(file);
-      } else if (file.type === 'application/pdf') {
-        parsedData = await processPDFFile(file);
       } else {
-        throw new Error('Unsupported file type');
+        throw new Error('Only image files are supported. PDF processing has been disabled for cost optimization.');
       }
 
       setParsedData(parsedData);
@@ -310,7 +307,7 @@ export default function GradeInputStep({ formData, updateFields, onComplete: _on
                     <p className="text-gray-900 font-semibold text-base sm:text-lg">Upload Your Results</p>
                     <p className="text-gray-600 text-sm sm:text-base mt-1">AI will instantly extract your grades</p>
                     <p className="text-gray-500 text-xs sm:text-sm mt-2">Drop your WASSCE results or click to browse</p>
-                    <p className="text-gray-400 text-xs mt-1">JPG, PNG, PDF • Max 10MB</p>
+                    <p className="text-gray-400 text-xs mt-1">JPG, PNG • Max 10MB</p>
                   </div>
                 )}
               </div>

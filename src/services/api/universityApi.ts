@@ -238,9 +238,36 @@ export interface CheckResponse {
   message: string;
   data: {
     check_code: string;
-    payment_link: string;
-    amount: number;
-    currency: string;
+    summary: {
+      total_score: number;
+      core_score: number;
+      elective_score: number;
+      core_grades: number[];
+      elective_grades: number[];
+    };
+    qualified_programs: Array<{
+      id: number;
+      name: string;
+      description: string;
+      max_grade: number;
+      link: string;
+    }>;
+    total_qualified: number;
+    school: {
+      id: number;
+      name: string;
+    };
+    country: {
+      id: number;
+      name: string;
+      code: string;
+      flag: string;
+    };
+    payment: {
+      amount: number;
+      currency: string;
+      payment_link: string;
+    };
   };
 }
 

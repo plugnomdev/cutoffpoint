@@ -42,7 +42,6 @@ export default function GradeChecker() {
   const [availableGrades, setAvailableGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
-  const [paymentCompleted, setPaymentCompleted] = useState(false);
   const lastSavedDataRef = useRef<string>('');
 
   // Auto-save functionality
@@ -387,8 +386,6 @@ export default function GradeChecker() {
             {currentStep === 3 && (
               <ConfirmationForm
                 formData={formData}
-                onPaymentComplete={() => setPaymentCompleted(true)}
-                paymentCompleted={paymentCompleted}
               />
             )}
 
@@ -429,14 +426,14 @@ export default function GradeChecker() {
                   <button
                     type="button"
                     onClick={next}
-                    disabled={currentStep === 3 && !paymentCompleted}
+                    disabled={currentStep === 3}
                     className={`flex items-center justify-center px-3 sm:px-8 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-lg transform hover:scale-105 ${
-                      currentStep === 3 && !paymentCompleted
+                      currentStep === 3
                         ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
                         : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
                     }`}
                   >
-                    <span className="text-xs sm:text-sm">{currentStep === 3 ? 'View Cut-off Points' : 'Continue'}</span>
+                    <span className="text-xs sm:text-sm">Continue</span>
                     <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
                   </button>
                 ) : (
