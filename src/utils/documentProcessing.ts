@@ -4,13 +4,13 @@ import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.js';
 
 // Gemini API Configuration - Use Lite model for cost optimization
-const GEMINI_MODEL = 'gemini-1.5-flash-8b';
+const GEMINI_MODEL = 'gemini-2.0-flash-lite';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // Model validation function to ensure only Lite model is used
 function validateGeminiModel(model: string): void {
-  if (model !== 'gemini-1.5-flash-8b') {
-    throw new Error(`Invalid Gemini model: ${model}. Only gemini-1.5-flash-8b (Lite) is allowed for cost control.`);
+  if (model !== 'gemini-2.0-flash-lite') {
+    throw new Error(`Invalid Gemini model: ${model}. Only gemini-2.0-flash-lite is allowed for cost control.`);
   }
 }
 
@@ -53,7 +53,7 @@ ${text}
 Return ONLY the JSON object, no explanations or additional text.`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -155,7 +155,7 @@ export async function processImageFile(file: File): Promise<ParsedDocumentData> 
 
 Look for the RESULTS section and extract subject names with their corresponding grades. Also look for the course/program offered (like Science, Arts, Business, etc.). Return ONLY the JSON object, no explanations or additional text.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -369,7 +369,7 @@ Example output:
 
 Return ONLY the JSON array, no explanations.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

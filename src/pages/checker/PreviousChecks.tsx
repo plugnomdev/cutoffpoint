@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../../components/layout/MainLayout';
 import { Helmet } from 'react-helmet-async';
-import { fetchPastCheck, PastCheckResponse, fetchCountries, fetchSchoolsByCountry, Country, School as SchoolType } from '../../services/api/universityApi';
+import { fetchPastCheck, fetchCountries, fetchSchoolsByCountry, Country, School as SchoolType } from '../../services/api/universityApi';
 
 // Define the type for previous checks from API
 interface PreviousCheck {
