@@ -208,7 +208,7 @@ export default function CombinedSubjectsForm({
   coreSubjects: _coreSubjects,
   updateFields
 }: CombinedSubjectsFormProps) {
-  const { availableGrades, formData } = useChecker();
+  const { availableGrades } = useChecker();
   const [fetchedCoreSubjects, setFetchedCoreSubjects] = useState<any[]>([]);
   const [fetchedElectiveSubjects, setFetchedElectiveSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -266,15 +266,13 @@ export default function CombinedSubjectsForm({
   }, [fetchedCoreSubjects]);
 
   const [electiveSelections, setElectiveSelections] = useState<string[]>([
-    formData.selectedElectives?.[0] || '',
-    formData.selectedElectives?.[1] || '',
-    formData.selectedElectives?.[2] || '',
-    formData.selectedElectives?.[3] || ''
+    '',
+    '',
+    '',
+    ''
   ]);
 
-  const [electiveGrades, setElectiveGrades] = useState<Record<string, string>>({
-    ...(formData.electiveGrades || {})
-  });
+  const [electiveGrades, setElectiveGrades] = useState<Record<string, string>>({});
 
   // Update parent when data changes
   useEffect(() => {
@@ -299,10 +297,16 @@ export default function CombinedSubjectsForm({
       return acc;
     }, {} as Record<number, string>);
 
+    // Create a mapping of subject names to IDs for electives
+    const electiveIds = electiveSelections.filter(s => s).map(name => {
+      const subject = fetchedElectiveSubjects.find(s => s.name === name);
+      return subject ? subject.id.toString() : '';
+    }).filter(id => id);
+
     updateFields({
       coreSubjects: transformedCoreSubjects,
       coreSubjectNames,
-      selectedElectives: electiveSelections.filter(s => s),
+      selectedElectives: electiveIds,
       electiveGrades
     });
   }, [coreGrades, electiveSelections, electiveGrades]); // Removed updateFields from dependencies

@@ -82,6 +82,10 @@ export const router = createBrowserRouter([
     element: <ResultsPageWrapper />,
   },
   {
+    path: '/checker/results/:id\\&:params',
+    element: <ResultsPageWrapper />,
+  },
+  {
     path: '/previous-checks',
     element: <PreviousChecks />
   },

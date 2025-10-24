@@ -51,12 +51,9 @@ export default function ConfirmationForm({
         return gradeMap[grade] || 0;
       };
 
-      // Create subject name to ID mapping - use exactly what was matched in step 1
-      const subjectNameToId = (subjectName: string): number => {
-        // Find the subject by name in our saved core subject names
-        const subjectEntry = Object.entries(formData.coreSubjectNames || {}).find(([, name]) => name === subjectName);
-        return subjectEntry ? parseInt(subjectEntry[0]) : 1; // Default to 1 if not found
-      };
+      // The subjects are already properly mapped with IDs from the previous steps
+      // We just need to use the subject IDs that were stored during subject selection
+      // The formData should contain the proper subject IDs, not names
 
       // Map certificate type to ID
       const getCertificateTypeId = (certType: string): number => {
@@ -109,10 +106,18 @@ export default function ConfirmationForm({
             acc[subjectName] = gradeToNumber(grade);
             return acc;
           }, {} as Record<string, number>),
-          electives: Object.entries(formData.electiveGrades).map(([subjectName, grade]) => ({
-            subject_id: subjectNameToId(subjectName),
-            grade: gradeToNumber(grade)
-          }))
+          electives: formData.selectedElectives
+            .map((subjectId, index) => {
+              // Get the grade for this elective by finding it in electiveGrades
+              // Since electiveGrades uses subject names as keys, we need to find the corresponding name
+              const gradeKeys = Object.keys(formData.electiveGrades || {});
+              const grade = gradeKeys[index] ? formData.electiveGrades[gradeKeys[index]] : '';
+              return {
+                subject_id: parseInt(subjectId),
+                grade: gradeToNumber(grade)
+              };
+            })
+            .filter(item => item.subject_id > 0 && item.grade > 0)
         }
       };
 

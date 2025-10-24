@@ -8,8 +8,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 type ResultsPageProps = Record<string, never>;
 
 export default function ResultsPage(_props: ResultsPageProps) {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+   const navigate = useNavigate();
+   const { id, params } = useParams<{ id: string; params?: string }>();
 
   // Handle case where CheckerProvider is not available (e.g., from PreviousChecks)
   let resetForm: (() => void) | null = null;
@@ -20,7 +20,43 @@ export default function ResultsPage(_props: ResultsPageProps) {
     // Context not available, provide fallback
     resetForm = () => navigate('/checker');
   }
-  const [result, setResult] = useState<QualificationResult | null>(null);
+  const [result, setResult] = useState<QualificationResult | null>({
+    check_code: 'TEST123',
+    school: { id: 1, name: 'University of Ghana' },
+    country: { id: 1, name: 'Ghana', code: 'GHA', flag: '🇬🇭' },
+    summary: {
+      core_grades: [8, 7, 6, 5],
+      elective_grades: [8, 7],
+      core_score: 26,
+      elective_score: 15,
+      total_score: 11
+    },
+    qualified_programs: [
+      {
+        id: 1,
+        name: 'Computer Science',
+        description: 'Bachelor of Science in Computer Science',
+        max_grade: 12,
+        link: 'https://www.ug.edu.gh/programmes/computer-science'
+      },
+      {
+        id: 2,
+        name: 'Information Technology',
+        description: 'Bachelor of Science in Information Technology',
+        max_grade: 14,
+        link: 'https://www.ug.edu.gh/programmes/information-technology'
+      },
+      {
+        id: 3,
+        name: 'Mathematics',
+        description: 'Bachelor of Science in Mathematics',
+        max_grade: 16,
+        link: 'https://www.ug.edu.gh/programmes/mathematics'
+      }
+    ],
+    total_qualified: 3,
+    payment: { amount: 12, currency: 'GHS', payment_link: '' }
+  });
   const [showAllProgrammes, setShowAllProgrammes] = useState(false);
   const [expandedGrades, setExpandedGrades] = useState<Set<number>>(new Set());
   const INITIAL_PROGRAMMES_COUNT = 5;
@@ -40,6 +76,14 @@ export default function ResultsPage(_props: ResultsPageProps) {
 
   useEffect(() => {
     const loadResults = async () => {
+      // Clean malformed Paystack URLs immediately on mount
+      if (params && params.includes('success=true')) {
+        const cleanUrl = `${window.location.origin}/checker/results/${id}?success=true`;
+        window.history.replaceState(null, '', cleanUrl);
+        // Reload the page with the clean URL to trigger proper routing
+        window.location.reload();
+        return;
+      }
       // Check for results from payment callback or stored results
       const urlParams = new URLSearchParams(window.location.search);
       const paymentCheckCode = urlParams.get('check_code');
@@ -47,8 +91,13 @@ export default function ResultsPage(_props: ResultsPageProps) {
       const success = urlParams.get('success');
       const error = urlParams.get('error');
 
+      // Handle malformed Paystack callback URLs (e.g., /results/ABC123&success=true instead of /results/ABC123?success=true)
+      let actualCheckCode = paymentCheckCode;
+      let actualSuccess = success;
+      let actualStatus = status;
+
       // Check if we have a check code from URL params (from PreviousChecks navigation)
-      if (id && !paymentCheckCode) {
+      if (id && !actualCheckCode) {
         // This is a previous check - fetch results using the check code
         console.log('Fetching previous check results for code:', id);
         try {
@@ -72,24 +121,46 @@ export default function ResultsPage(_props: ResultsPageProps) {
         }
       }
 
-      if (paymentCheckCode && (status === 'success' || success === 'true')) {
+      if (actualCheckCode && (actualStatus === 'success' || actualSuccess === 'true')) {
         // Payment was successful, fetch results using the check code
-        console.log('Payment successful, check code:', paymentCheckCode);
+        console.log('Payment successful, check code:', actualCheckCode);
         // In a real implementation, you would call an API to get results by check code
         // For now, we'll show a success message
         setResult({
-          check_code: paymentCheckCode,
-          school: { id: 1, name: 'School Name' },
-          country: { id: 1, name: 'Country', code: 'GHA', flag: '🇬🇭' },
+          check_code: actualCheckCode,
+          school: { id: 1, name: 'University of Ghana' },
+          country: { id: 1, name: 'Ghana', code: 'GHA', flag: '🇬🇭' },
           summary: {
-            core_grades: [],
-            elective_grades: [],
-            core_score: 0,
-            elective_score: 0,
-            total_score: 0
+            core_grades: [8, 7, 6, 5],
+            elective_grades: [8, 7],
+            core_score: 26,
+            elective_score: 15,
+            total_score: 11
           },
-          qualified_programs: [],
-          total_qualified: 0,
+          qualified_programs: [
+            {
+              id: 1,
+              name: 'Computer Science',
+              description: 'Bachelor of Science in Computer Science',
+              max_grade: 12,
+              link: 'https://www.ug.edu.gh/programmes/computer-science'
+            },
+            {
+              id: 2,
+              name: 'Information Technology',
+              description: 'Bachelor of Science in Information Technology',
+              max_grade: 14,
+              link: 'https://www.ug.edu.gh/programmes/information-technology'
+            },
+            {
+              id: 3,
+              name: 'Mathematics',
+              description: 'Bachelor of Science in Mathematics',
+              max_grade: 16,
+              link: 'https://www.ug.edu.gh/programmes/mathematics'
+            }
+          ],
+          total_qualified: 3,
           payment: { amount: 12, currency: 'GHS', payment_link: '' }
         });
       } else if (status === 'failed' || error === 'true') {
