@@ -1,7 +1,4 @@
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Set the worker source to local file
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.js';
+// PDF.js import removed - only image processing allowed for cost control
 
 // Gemini API Configuration - Use Lite model for cost optimization
 const GEMINI_MODEL = 'gemini-2.0-flash-lite';
@@ -23,108 +20,11 @@ export interface ParsedDocumentData {
     name?: string;
     certificateType?: string;
   };
+  courseOffered?: string;
   rawText: string;
 }
 
-// AI-powered parsing using Google Gemini API
-async function parseWithAI(text: string): Promise<ParsedDocumentData> {
-  // Validate model before making API call
-  validateGeminiModel(GEMINI_MODEL);
-
-  const prompt = `Extract student information, course offered, and grades from this WASSCE results document. Return ONLY a valid JSON object with this exact structure:
-
-{
-  "studentInfo": {
-    "name": "string or null",
-    "certificateType": "WASSCE or SSSCE or GBCE or null"
-  },
-  "courseOffered": "Science or Arts or Business or Technical or Agricultural or null",
-  "extractedSubjects": [
-    {
-      "name": "subject name",
-      "grade": "A1 or B2 or B3 or C4 or C5 or C6 or D7 or E8 or F9"
-    }
-  ]
-}
-
-Look for the course/program offered (like Science, Arts, Business, etc.) in the document. Document text:
-${text}
-
-Return ONLY the JSON object, no explanations or additional text.`;
-
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.1,
-          topK: 1,
-          topP: 1,
-          maxOutputTokens: 2048,
-        }
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      throw new Error('Invalid Gemini API response');
-    }
-
-    const generatedText = data.candidates[0].content.parts[0].text;
-
-    // Clean the response - remove markdown code blocks if present
-    let cleanText = generatedText.trim();
-
-    // Remove markdown code blocks (```json ... ``` or ``` ... ```)
-    if (cleanText.startsWith('```json')) {
-      cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (cleanText.startsWith('```')) {
-      cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-    }
-
-    // Extract JSON from the cleaned text
-    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in Gemini response');
-    }
-
-    const parsedData = JSON.parse(jsonMatch[0]);
-
-    // Validate the response structure
-    if (!parsedData.studentInfo || !Array.isArray(parsedData.extractedSubjects)) {
-      throw new Error('Invalid response structure from Gemini');
-    }
-
-    // Ensure courseOffered is a string or null
-    if (parsedData.courseOffered && typeof parsedData.courseOffered !== 'string') {
-      parsedData.courseOffered = null;
-    }
-
-    return {
-      ...parsedData,
-      rawText: text
-    } as ParsedDocumentData;
-
-  } catch (error) {
-    console.error('Gemini API parsing failed:', error);
-    throw new Error(`Document parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-
+// Image processing using Gemini 2.0 Flash-Lite Vision (cost-effective)
 export async function processImageFile(file: File): Promise<ParsedDocumentData> {
   if (!GEMINI_API_KEY) {
     throw new Error('Gemini API key is required for image processing');
@@ -217,46 +117,12 @@ Look for the RESULTS section and extract subject names with their corresponding 
 
     return {
       ...parsedData,
-      rawText: `Image processed by Gemini Lite Vision API. Extracted ${parsedData.extractedSubjects.length} subjects.`
-    } as ParsedDocumentData;
+      rawText: `Image processed by Gemini 2.0 Flash-Lite Vision API. Extracted ${parsedData.extractedSubjects.length} subjects.`
+    };
 
   } catch (error) {
     console.error('Gemini Vision processing failed:', error);
     throw new Error(`Image processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-export async function processPDFFile(file: File): Promise<ParsedDocumentData> {
-  if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key is required for PDF processing');
-  }
-
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-
-    // Load the PDF document
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-    let fullText = '';
-
-    // Extract text from all pages
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-
-      // Concatenate text items
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-
-      fullText += pageText + ' ';
-    }
-
-    // Use Gemini AI parsing for PDFs
-    return await parseWithAI(fullText);
-  } catch (error) {
-    console.error('PDF processing error:', error);
-    throw new Error('Failed to process PDF file. Please ensure it\'s a valid PDF document with readable text.');
   }
 }
 
@@ -274,6 +140,112 @@ function fileToBase64(file: File): Promise<string> {
     reader.onerror = error => reject(error);
   });
 }
+
+// Text-based processing using Gemini 2.0 Flash-Lite (cost-effective)
+export async function processTextDocument(text: string): Promise<ParsedDocumentData> {
+  if (!GEMINI_API_KEY) {
+    throw new Error('Gemini API key is required for text processing');
+  }
+
+  // Validate model before making API call
+  validateGeminiModel(GEMINI_MODEL);
+
+  const prompt = `Extract student information, course offered, and grades from this WASSCE results text. Return ONLY a valid JSON object with this exact structure:
+
+{
+  "studentInfo": {
+    "name": "string or null",
+    "certificateType": "WASSCE or SSSCE or GBCE or null"
+  },
+  "courseOffered": "Science or Arts or Business or Technical or Agricultural or null",
+  "extractedSubjects": [
+    {
+      "name": "subject name",
+      "grade": "A1 or B2 or B3 or C4 or C5 or C6 or D7 or E8 or F9"
+    }
+  ]
+}
+
+Look for the RESULTS section and extract subject names with their corresponding grades. Also look for the course/program offered (like Science, Arts, Business, etc.). Document text:
+${text}
+
+Return ONLY the JSON object, no explanations or additional text.`;
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 1,
+          topP: 1,
+          maxOutputTokens: 2048,
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error('Invalid Gemini API response');
+    }
+
+    const generatedText = data.candidates[0].content.parts[0].text;
+
+    // Clean the response - remove markdown code blocks if present
+    let cleanText = generatedText.trim();
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+
+    // Extract JSON from the cleaned text
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in Gemini response');
+    }
+
+    const parsedData = JSON.parse(jsonMatch[0]);
+
+    // Validate the response structure
+    if (!parsedData.studentInfo || !Array.isArray(parsedData.extractedSubjects)) {
+      throw new Error('Invalid response structure from Gemini');
+    }
+
+    // Ensure courseOffered is a string or null
+    if (parsedData.courseOffered && typeof parsedData.courseOffered !== 'string') {
+      parsedData.courseOffered = null;
+    }
+
+    return {
+      ...parsedData,
+      rawText: text
+    };
+
+  } catch (error) {
+    console.error('Gemini text processing failed:', error);
+    throw new Error(`Text processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+// PDF processing removed - only image processing allowed for cost control
+
+// PDF processing removed - only image processing allowed for cost control
+
+// File processing utilities removed - only manual entry allowed
 
 
 export async function detectCountryFromIP(): Promise<string> {
