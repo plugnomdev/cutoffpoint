@@ -386,6 +386,7 @@ export default function GradeChecker() {
             {currentStep === 3 && (
               <ConfirmationForm
                 formData={formData}
+                electiveSubjects={electiveSubjects}
               />
             )}
 

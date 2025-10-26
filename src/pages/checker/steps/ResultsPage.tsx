@@ -20,43 +20,7 @@ export default function ResultsPage(_props: ResultsPageProps) {
     // Context not available, provide fallback
     resetForm = () => navigate('/checker');
   }
-  const [result, setResult] = useState<QualificationResult | null>({
-    check_code: 'TEST123',
-    school: { id: 1, name: 'University of Ghana' },
-    country: { id: 1, name: 'Ghana', code: 'GHA', flag: '🇬🇭' },
-    summary: {
-      core_grades: [8, 7, 6, 5],
-      elective_grades: [8, 7],
-      core_score: 26,
-      elective_score: 15,
-      total_score: 11
-    },
-    qualified_programs: [
-      {
-        id: 1,
-        name: 'Computer Science',
-        description: 'Bachelor of Science in Computer Science',
-        max_grade: 12,
-        link: 'https://www.ug.edu.gh/programmes/computer-science'
-      },
-      {
-        id: 2,
-        name: 'Information Technology',
-        description: 'Bachelor of Science in Information Technology',
-        max_grade: 14,
-        link: 'https://www.ug.edu.gh/programmes/information-technology'
-      },
-      {
-        id: 3,
-        name: 'Mathematics',
-        description: 'Bachelor of Science in Mathematics',
-        max_grade: 16,
-        link: 'https://www.ug.edu.gh/programmes/mathematics'
-      }
-    ],
-    total_qualified: 3,
-    payment: { amount: 12, currency: 'GHS', payment_link: '' }
-  });
+  const [result, setResult] = useState<QualificationResult | null>(null);
   const [showAllProgrammes, setShowAllProgrammes] = useState(false);
   const [expandedGrades, setExpandedGrades] = useState<Set<number>>(new Set());
   const INITIAL_PROGRAMMES_COUNT = 5;
@@ -122,47 +86,48 @@ export default function ResultsPage(_props: ResultsPageProps) {
       }
 
       if (actualCheckCode && (actualStatus === 'success' || actualSuccess === 'true')) {
-        // Payment was successful, fetch results using the check code
+        // Payment was successful, first check for stored results from confirmation step
         console.log('Payment successful, check code:', actualCheckCode);
-        // In a real implementation, you would call an API to get results by check code
-        // For now, we'll show a success message
-        setResult({
-          check_code: actualCheckCode,
-          school: { id: 1, name: 'University of Ghana' },
-          country: { id: 1, name: 'Ghana', code: 'GHA', flag: '🇬🇭' },
-          summary: {
-            core_grades: [8, 7, 6, 5],
-            elective_grades: [8, 7],
-            core_score: 26,
-            elective_score: 15,
-            total_score: 11
-          },
-          qualified_programs: [
-            {
-              id: 1,
-              name: 'Computer Science',
-              description: 'Bachelor of Science in Computer Science',
-              max_grade: 12,
-              link: 'https://www.ug.edu.gh/programmes/computer-science'
-            },
-            {
-              id: 2,
-              name: 'Information Technology',
-              description: 'Bachelor of Science in Information Technology',
-              max_grade: 14,
-              link: 'https://www.ug.edu.gh/programmes/information-technology'
-            },
-            {
-              id: 3,
-              name: 'Mathematics',
-              description: 'Bachelor of Science in Mathematics',
-              max_grade: 16,
-              link: 'https://www.ug.edu.gh/programmes/mathematics'
-            }
-          ],
-          total_qualified: 3,
-          payment: { amount: 12, currency: 'GHS', payment_link: '' }
-        });
+
+        const storedResult = localStorage.getItem('qualificationResult');
+        if (storedResult) {
+          try {
+            const parsedResult = JSON.parse(storedResult);
+            console.log('Using stored qualification result:', parsedResult);
+            setResult(parsedResult);
+            localStorage.removeItem('qualificationResult'); // Clean up
+            return;
+          } catch (error) {
+            console.error('Failed to parse stored result:', error);
+          }
+        }
+
+        // Fallback: fetch from API if no stored result
+        try {
+          const pastCheckResponse = await fetchPastCheck(actualCheckCode);
+          if (pastCheckResponse.success && pastCheckResponse.data) {
+            // Transform the past check data to QualificationResult format
+            const transformedResult: QualificationResult = {
+              check_code: pastCheckResponse.data.check_code,
+              school: pastCheckResponse.data.school,
+              country: { id: 1, name: 'Ghana', code: 'GHA', flag: '🇬🇭' }, // Default country
+              summary: pastCheckResponse.data.summary,
+              qualified_programs: pastCheckResponse.data.qualified_programs,
+              total_qualified: pastCheckResponse.data.total_qualified,
+              payment: { amount: 0, currency: 'GHS', payment_link: '' } // No payment needed for completed checks
+            };
+            setResult(transformedResult);
+            return;
+          } else {
+            console.error('Failed to fetch check results:', pastCheckResponse);
+            // Show error message
+            setResult(null);
+          }
+        } catch (error) {
+          console.error('Error fetching check results:', error);
+          // Show error message
+          setResult(null);
+        }
       } else if (status === 'failed' || error === 'true') {
         // Payment failed
         console.log('Payment failed');

@@ -1,28 +1,51 @@
 import { FormData } from '../types';
-import { useState } from 'react';
-import { submitQualificationCheck, createInitialOrder, InitialOrderRequest } from '../../../services/api/universityApi';
+import { useState, useEffect } from 'react';
+import { submitQualificationCheck, createInitialOrder, InitialOrderRequest, Subject, fetchSubjectsByType } from '../../../services/api/universityApi';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useChecker } from '../CheckerContext';
 
 type ConfirmationFormProps = {
   formData: FormData;
+  electiveSubjects: Subject[];
 }
 
 export default function ConfirmationForm({
-  formData
+  formData,
+  electiveSubjects: initialElectiveSubjects
 }: ConfirmationFormProps) {
-  const { electiveSubjects } = useChecker();
+  const [electiveSubjects, setElectiveSubjects] = useState<Subject[]>(initialElectiveSubjects || []);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [gradesExpanded, setGradesExpanded] = useState(false);
 
+  // Fetch elective subjects if not provided
+  useEffect(() => {
+    if (!electiveSubjects || electiveSubjects.length === 0) {
+      console.log('Fetching elective subjects in ConfirmationForm...');
+      fetchSubjectsByType(2)
+        .then(subjects => {
+          console.log('Fetched elective subjects:', subjects.length);
+          setElectiveSubjects(subjects);
+        })
+        .catch(error => {
+          console.error('Failed to fetch elective subjects:', error);
+        });
+    }
+  }, [electiveSubjects]);
+
   // Helper function to get subject name by ID - use exactly what was matched in step 1
   const getSubjectName = (id: number) => {
-    return formData.coreSubjectNames?.[id] || `Subject ${id}`;
+    const name = formData.coreSubjectNames?.[id] || `Subject ${id}`;
+    return name.toLowerCase(); // Ensure lowercase for display
   };
 
   // Helper function to get elective subject display name from ID
   const getElectiveSubjectName = (subjectId: string) => {
+    console.log('getElectiveSubjectName called with:', subjectId, 'electiveSubjects length:', electiveSubjects?.length);
+    if (!electiveSubjects || electiveSubjects.length === 0) {
+      console.warn('electiveSubjects not available in ConfirmationForm');
+      return subjectId; // Return ID while subjects are loading
+    }
     const subject = electiveSubjects.find((s: any) => s.id.toString() === subjectId);
+    console.log('Found subject:', subject);
     return subject ? subject.name : subjectId;
   };
 
@@ -127,12 +150,28 @@ export default function ConfirmationForm({
       console.log('Check Response:', response);
       console.log('Response data structure:', response.data);
 
-      if (response.data.payment?.payment_link) {
-        // Redirect to payment gateway immediately
-        window.location.href = response.data.payment.payment_link;
+      if (response.success && response.data) {
+        // Store the qualification results for immediate display after payment
+        localStorage.setItem('qualificationResult', JSON.stringify({
+          check_code: response.data.check_code,
+          school: response.data.school,
+          country: response.data.country,
+          summary: response.data.summary,
+          qualified_programs: response.data.qualified_programs,
+          total_qualified: response.data.total_qualified,
+          payment: response.data.payment
+        }));
+
+        if (response.data.payment?.payment_link) {
+          // Redirect to payment gateway immediately
+          window.location.href = response.data.payment.payment_link;
+        } else {
+          console.error('API Response missing payment_link:', response);
+          throw new Error('Payment link not provided by server');
+        }
       } else {
-        console.error('API Response missing payment_link:', response);
-        throw new Error('Payment link not provided by server');
+        console.error('API Response unsuccessful:', response);
+        throw new Error(response.message || 'Failed to process qualification check');
       }
     } catch (error) {
       console.error('Payment initiation failed:', error);
@@ -233,7 +272,7 @@ export default function ConfirmationForm({
                     console.log('📋 Displaying elective:', { subjectId, displayName, grade, gradeKeys, index });
                     return (
                       <div key={subjectId} className="flex justify-between items-center">
-                        <span className="text-[10px] sm:text-xs font-medium text-gray-700 truncate">{displayName}</span>
+                        <span className="text-[10px] sm:text-xs font-medium text-gray-700 truncate">{displayName || subjectId}</span>
                         <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-800 rounded flex-shrink-0 ml-2">
                           {grade || 'Not graded'}
                         </span>
