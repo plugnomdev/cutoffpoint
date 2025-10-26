@@ -2,6 +2,7 @@ import { FormData } from '../types';
 import { useState } from 'react';
 import { submitQualificationCheck, createInitialOrder, InitialOrderRequest } from '../../../services/api/universityApi';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useChecker } from '../CheckerContext';
 
 type ConfirmationFormProps = {
   formData: FormData;
@@ -10,6 +11,7 @@ type ConfirmationFormProps = {
 export default function ConfirmationForm({
   formData
 }: ConfirmationFormProps) {
+  const { electiveSubjects } = useChecker();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [gradesExpanded, setGradesExpanded] = useState(false);
 
@@ -18,10 +20,10 @@ export default function ConfirmationForm({
     return formData.coreSubjectNames?.[id] || `Subject ${id}`;
   };
 
-  // Helper function to get elective subject display name
-  // Since we now save electives with proper API names, just return as-is
-  const getElectiveSubjectName = (subjectKey: string) => {
-    return subjectKey; // Already the proper API subject name
+  // Helper function to get elective subject display name from ID
+  const getElectiveSubjectName = (subjectId: string) => {
+    const subject = electiveSubjects.find((s: any) => s.id.toString() === subjectId);
+    return subject ? subject.name : subjectId;
   };
 
   const handlePayment = async () => {
@@ -75,20 +77,10 @@ export default function ConfirmationForm({
         return programMap[programLevel] || 3;
       };
 
-      // Create subject ID to name mapping for core subjects - use exactly what was matched in step 1
-      const subjectIdToName = (subjectId: string): string => {
-        // Get from saved core subject names and convert to expected format
-        const name = formData.coreSubjectNames?.[parseInt(subjectId)]?.toLowerCase() || '';
-        // Map common variations to expected names
-        const nameMap: Record<string, string> = {
-          'mathematics': 'math',
-          'english language': 'english',
-          'english': 'english',
-          'science': 'science',
-          'social studies': 'social',
-          'social': 'social'
-        };
-        return nameMap[name] || name;
+      // Get subject code directly from the API subject data
+      const subjectIdToCode = (subjectId: string): string => {
+        // The coreSubjectNames should contain the subject codes from the API
+        return formData.coreSubjectNames?.[parseInt(subjectId)] || `Subject ${subjectId}`;
       };
 
       // Step 3: Complete the check with the code from initial order
@@ -101,23 +93,29 @@ export default function ConfirmationForm({
         course_id: 1, // Default course ID
         results: {
           core: Object.entries(formData.coreSubjects).reduce((acc, [subjectId, grade]) => {
-            // Use subject name as key instead of ID
-            const subjectName = subjectIdToName(subjectId);
-            acc[subjectName] = gradeToNumber(grade);
+            // Use lowercase subject codes as keys (math, english, science, social)
+            const subjectCode = (formData.coreSubjectNames?.[parseInt(subjectId)] || '').toLowerCase();
+            acc[subjectCode] = gradeToNumber(grade);
             return acc;
           }, {} as Record<string, number>),
           electives: formData.selectedElectives
+            .filter(subjectId => subjectId && subjectId.trim() !== '') // Only include non-empty subject IDs
             .map((subjectId, index) => {
               // Get the grade for this elective by finding it in electiveGrades
               // Since electiveGrades uses subject names as keys, we need to find the corresponding name
               const gradeKeys = Object.keys(formData.electiveGrades || {});
               const grade = gradeKeys[index] ? formData.electiveGrades[gradeKeys[index]] : '';
+              console.log('Elective mapping:', { subjectId, index, gradeKeys, grade, gradeNumber: gradeToNumber(grade) });
               return {
-                subject_id: parseInt(subjectId),
+                subject_id: parseInt(subjectId), // Use subject ID as number for electives
                 grade: gradeToNumber(grade)
               };
             })
-            .filter(item => item.subject_id > 0 && item.grade > 0)
+            .filter(item => {
+              console.log('Filtering elective:', item);
+              return !isNaN(item.subject_id) && item.subject_id > 0 && item.grade > 0;
+            })
+            .slice(0, 4) // Ensure only 4 electives are sent
         }
       };
 
@@ -227,14 +225,17 @@ export default function ConfirmationForm({
               <div className="p-3 sm:p-4 border-t">
                 <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm bg-gray-100 px-2 py-1 rounded inline-block">Elective Subjects</h4>
                 <div className="space-y-2 sm:space-y-3">
-                  {formData.selectedElectives.map((subject) => {
-                    const displayName = getElectiveSubjectName(subject);
-                    console.log('📋 Displaying elective:', { subject, displayName, grade: formData.electiveGrades[subject] });
+                  {formData.selectedElectives.map((subjectId, index) => {
+                    const displayName = getElectiveSubjectName(subjectId);
+                    // Get grade by subject name, not ID
+                    const gradeKeys = Object.keys(formData.electiveGrades || {});
+                    const grade = gradeKeys[index] ? formData.electiveGrades[gradeKeys[index]] : '';
+                    console.log('📋 Displaying elective:', { subjectId, displayName, grade, gradeKeys, index });
                     return (
-                      <div key={subject} className="flex justify-between items-center">
+                      <div key={subjectId} className="flex justify-between items-center">
                         <span className="text-[10px] sm:text-xs font-medium text-gray-700 truncate">{displayName}</span>
                         <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-800 rounded flex-shrink-0 ml-2">
-                          {formData.electiveGrades[subject] || 'Not graded'}
+                          {grade || 'Not graded'}
                         </span>
                       </div>
                     );

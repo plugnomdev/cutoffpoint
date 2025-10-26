@@ -202,13 +202,15 @@ function SearchableSelect({
 type CombinedSubjectsFormProps = CoreSubjects & {
   coreSubjects: Subject[];
   updateFields: (fields: { coreSubjects: CoreSubjects } | { coreSubjectNames: Record<number, string> } | { selectedElectives: string[] } | { electiveGrades: Record<string, string> }) => void;
+  coreSubjectNames?: Record<number, string>;
 }
 
 export default function CombinedSubjectsForm({
   coreSubjects: _coreSubjects,
-  updateFields
+  updateFields,
+  coreSubjectNames
 }: CombinedSubjectsFormProps) {
-  const { availableGrades } = useChecker();
+  const { availableGrades, formData } = useChecker();
   const [fetchedCoreSubjects, setFetchedCoreSubjects] = useState<any[]>([]);
   const [fetchedElectiveSubjects, setFetchedElectiveSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -249,30 +251,41 @@ export default function CombinedSubjectsForm({
     fetchSubjects();
   }, []);
 
-  // Initialize core grades based on fetched subjects
+  // Initialize core grades based on fetched subjects and existing form data
   const [coreGrades, setCoreGrades] = useState<Record<string, string>>({});
 
-  // Update core grades when subjects are fetched
+  // Update core grades when subjects are fetched or form data changes
   useEffect(() => {
     if (fetchedCoreSubjects.length > 0) {
       const initialGrades: Record<string, string> = {};
       fetchedCoreSubjects.forEach((subject) => {
         // Use subject ID as key for consistency
         const key = `core_${subject.id}`;
-        initialGrades[key] = '';
+        // Initialize with existing grade if available
+        const existingGrade = formData.coreSubjects?.[subject.id] || '';
+        initialGrades[key] = existingGrade;
       });
       setCoreGrades(initialGrades);
     }
-  }, [fetchedCoreSubjects]);
+  }, [fetchedCoreSubjects, formData.coreSubjects]);
+
+  // Convert subject IDs back to names for display/selection
+  const getElectiveNameFromId = (id: string) => {
+    if (!id || id.trim() === '') return '';
+    const subject = fetchedElectiveSubjects.find(s => s.id.toString() === id);
+    return subject ? subject.name : '';
+  };
 
   const [electiveSelections, setElectiveSelections] = useState<string[]>([
-    '',
-    '',
-    '',
-    ''
+    getElectiveNameFromId(formData.selectedElectives?.[0] || ''),
+    getElectiveNameFromId(formData.selectedElectives?.[1] || ''),
+    getElectiveNameFromId(formData.selectedElectives?.[2] || ''),
+    getElectiveNameFromId(formData.selectedElectives?.[3] || '')
   ]);
 
-  const [electiveGrades, setElectiveGrades] = useState<Record<string, string>>({});
+  const [electiveGrades, setElectiveGrades] = useState<Record<string, string>>({
+    ...(formData.electiveGrades || {})
+  });
 
   // Update parent when data changes
   useEffect(() => {
@@ -285,27 +298,29 @@ export default function CombinedSubjectsForm({
       return acc;
     }, {} as Record<number, string>);
 
-    // Create coreSubjectNames mapping for manual entry
-    const coreSubjectNames = Object.entries(coreGrades).reduce((acc, [key, grade]) => {
+    // Create coreSubjectNames mapping using subject codes from API (for backend submission)
+    const updatedCoreSubjectNames = Object.entries(coreGrades).reduce((acc, [key, grade]) => {
       if (grade && key.startsWith('core_')) {
         const subjectId = key.replace('core_', '');
         const subject = fetchedCoreSubjects.find(s => s.id === parseInt(subjectId));
         if (subject) {
-          acc[parseInt(subjectId)] = subject.name;
+          acc[parseInt(subjectId)] = subject.subject_code; // Use subject code for core subjects
         }
       }
       return acc;
-    }, {} as Record<number, string>);
+    }, { ...coreSubjectNames } as Record<number, string>);
 
-    // Create a mapping of subject names to IDs for electives
-    const electiveIds = electiveSelections.filter(s => s).map(name => {
+    // Create a mapping of subject names to subject_ids for electives (backend expects IDs for electives)
+    const electiveIds = electiveSelections.map(name => {
+      if (!name || name.trim() === '') return '';
       const subject = fetchedElectiveSubjects.find(s => s.name === name);
+      console.log('Elective subject lookup:', { name, subject, id: subject?.id });
       return subject ? subject.id.toString() : '';
-    }).filter(id => id);
+    });
 
     updateFields({
       coreSubjects: transformedCoreSubjects,
-      coreSubjectNames,
+      coreSubjectNames: updatedCoreSubjectNames,
       selectedElectives: electiveIds,
       electiveGrades
     });

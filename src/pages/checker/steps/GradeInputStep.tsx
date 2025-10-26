@@ -181,11 +181,25 @@ export default function GradeInputStep({ formData, updateFields, onComplete: _on
       }
     });
 
+    // Store subject codes for core subjects and subject IDs for electives
+    const coreSubjectCodes: Record<number, string> = {};
+    Object.entries(coreSubjectNamesMap).forEach(([id, name]) => {
+      // Get subject code from core subjects API
+      const subject = coreSubjects.find(s => s.id === parseInt(id));
+      coreSubjectCodes[parseInt(id)] = subject?.subject_code || name;
+    });
+
+    const electiveIds = selectedElectives.map(name => {
+      // Get subject ID from elective subjects API
+      const subject = electiveSubjects.find(s => s.name === name);
+      return subject ? subject.id.toString() : name;
+    });
+
     updateFields({
       coreSubjects: coreSubjectsMap,
-      coreSubjectNames: coreSubjectNamesMap,
+      coreSubjectNames: coreSubjectCodes, // Store subject codes for core
       electiveGrades,
-      selectedElectives
+      selectedElectives: electiveIds // Store subject IDs for electives
     });
 
     setGradesConfirmed(true);
