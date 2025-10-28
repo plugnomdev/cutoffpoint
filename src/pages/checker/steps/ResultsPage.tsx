@@ -12,7 +12,10 @@ type ResultsPageProps = Record<string, never>;
 
 export default function ResultsPage(_props: ResultsPageProps) {
    const navigate = useNavigate();
-   const { id, params } = useParams<{ id: string; params?: string }>();
+   const { id: rawId, params } = useParams<{ id: string; params?: string }>();
+
+   // Clean the ID if it contains malformed Paystack parameters
+   const id = rawId ? rawId.split('&')[0] : undefined;
 
   // Handle case where CheckerProvider is not available (e.g., from PreviousChecks)
   let resetForm: (() => void) | null = null;
@@ -33,14 +36,6 @@ export default function ResultsPage(_props: ResultsPageProps) {
 
   useEffect(() => {
     const loadResults = async () => {
-      // Clean malformed Paystack URLs immediately on mount
-      if (params && params.includes('success=true')) {
-        const cleanUrl = `${window.location.origin}/checker/results/${id}?success=true`;
-        window.history.replaceState(null, '', cleanUrl);
-        // Reload the page with the clean URL to trigger proper routing
-        window.location.reload();
-        return;
-      }
       // Check for results from payment callback or stored results
       const urlParams = new URLSearchParams(window.location.search);
       const paymentCheckCode = urlParams.get('check_code');
@@ -52,6 +47,17 @@ export default function ResultsPage(_props: ResultsPageProps) {
       let actualCheckCode = paymentCheckCode || id; // Use id as check code if no explicit check_code param
       let actualSuccess = success;
       let actualStatus = status;
+
+      // Check if this is a malformed Paystack callback URL (contains & instead of ?)
+      const isMalformedPaystackUrl = params && (params.includes('&success=true') || params.includes('&status=success'));
+
+      if (isMalformedPaystackUrl) {
+        console.log('Detected malformed Paystack callback URL, redirecting to clean URL');
+        // Immediately redirect to clean URL without showing any UI
+        const cleanUrl = `${window.location.origin}/checker/results/${id}`;
+        window.location.href = cleanUrl;
+        return;
+      }
 
       // Check if this is a payment callback (has success=true or status=success)
       const isPaymentCallback = actualSuccess === 'true' || actualStatus === 'success';
