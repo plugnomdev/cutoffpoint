@@ -1,9 +1,12 @@
 import { useChecker } from '../CheckerContext';
-import { CheckCircle, XCircle, ArrowRight, ChevronDown, Download, Printer } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, ChevronDown, Download, Printer, Briefcase } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import { useEffect, useState } from 'react';
 import { QualificationResult, fetchPastCheck } from '../../../services/api/universityApi';
 import { useNavigate, useParams } from 'react-router-dom';
+import MainLayout from '../../../components/layout/MainLayout';
+import { Helmet } from 'react-helmet-async';
+import CareerModal from './CareerModal';
 
 type ResultsPageProps = Record<string, never>;
 
@@ -23,20 +26,10 @@ export default function ResultsPage(_props: ResultsPageProps) {
   const [result, setResult] = useState<QualificationResult | null>(null);
   const [showAllProgrammes, setShowAllProgrammes] = useState(false);
   const [expandedGrades, setExpandedGrades] = useState<Set<number>>(new Set());
+  const [selectedProgramForCareer, setSelectedProgramForCareer] = useState<{ name: string; description: string } | null>(null);
   const INITIAL_PROGRAMMES_COUNT = 5;
 
 
-  // Helper function to get programmes grouped by school
-  const getProgrammesBySchool = (programmes: QualificationResult['qualified_programs']): Array<{ school: string; count: number }> => {
-    const schoolMap = new Map<string, number>();
-
-    programmes.forEach(() => {
-      const schoolName = result?.school.name || 'Unknown';
-      schoolMap.set(schoolName, (schoolMap.get(schoolName) || 0) + 1);
-    });
-
-    return Array.from(schoolMap.entries()).map(([school, count]) => ({ school, count }));
-  };
 
   useEffect(() => {
     const loadResults = async () => {
@@ -56,13 +49,18 @@ export default function ResultsPage(_props: ResultsPageProps) {
       const error = urlParams.get('error');
 
       // Handle malformed Paystack callback URLs (e.g., /results/ABC123&success=true instead of /results/ABC123?success=true)
-      let actualCheckCode = paymentCheckCode;
+      let actualCheckCode = paymentCheckCode || id; // Use id as check code if no explicit check_code param
       let actualSuccess = success;
       let actualStatus = status;
 
-      // Check if we have a check code from URL params (from PreviousChecks navigation)
-      if (id && !actualCheckCode) {
-        // This is a previous check - fetch results using the check code
+      // Check if this is a payment callback (has success=true or status=success)
+      const isPaymentCallback = actualSuccess === 'true' || actualStatus === 'success';
+
+      if (isPaymentCallback) {
+        // This is a payment callback - load stored results
+        console.log('Payment callback detected for check code:', actualCheckCode);
+      } else if (id) {
+        // This is navigation from PreviousChecks page - fetch using past check API
         console.log('Fetching previous check results for code:', id);
         try {
           const pastCheckResponse = await fetchPastCheck(id);
@@ -79,10 +77,17 @@ export default function ResultsPage(_props: ResultsPageProps) {
             };
             setResult(transformedResult);
             return;
+          } else {
+            console.error('Failed to fetch past check results:', pastCheckResponse);
+            // Show error message
+            setResult(null);
           }
         } catch (error) {
-          console.error('Failed to fetch past check results:', error);
+          console.error('Error fetching past check results:', error);
+          // Show error message
+          setResult(null);
         }
+        return;
       }
 
       if (actualCheckCode && (actualStatus === 'success' || actualSuccess === 'true')) {
@@ -102,32 +107,23 @@ export default function ResultsPage(_props: ResultsPageProps) {
           }
         }
 
-        // Fallback: fetch from API if no stored result
-        try {
-          const pastCheckResponse = await fetchPastCheck(actualCheckCode);
-          if (pastCheckResponse.success && pastCheckResponse.data) {
-            // Transform the past check data to QualificationResult format
-            const transformedResult: QualificationResult = {
-              check_code: pastCheckResponse.data.check_code,
-              school: pastCheckResponse.data.school,
-              country: { id: 1, name: 'Ghana', code: 'GHA', flag: '🇬🇭' }, // Default country
-              summary: pastCheckResponse.data.summary,
-              qualified_programs: pastCheckResponse.data.qualified_programs,
-              total_qualified: pastCheckResponse.data.total_qualified,
-              payment: { amount: 0, currency: 'GHS', payment_link: '' } // No payment needed for completed checks
-            };
-            setResult(transformedResult);
-            return;
-          } else {
-            console.error('Failed to fetch check results:', pastCheckResponse);
-            // Show error message
-            setResult(null);
-          }
-        } catch (error) {
-          console.error('Error fetching check results:', error);
-          // Show error message
-          setResult(null);
-        }
+        // No stored results found - show appropriate message
+        console.log('No stored results found for check code:', actualCheckCode);
+        setResult({
+          check_code: actualCheckCode || 'UNKNOWN',
+          school: { id: 0, name: 'No Results Available' },
+          country: { id: 1, name: 'Ghana', code: 'GHA', flag: '🇬🇭' },
+          summary: {
+            core_grades: [],
+            elective_grades: [],
+            core_score: 0,
+            elective_score: 0,
+            total_score: 0
+          },
+          qualified_programs: [],
+          total_qualified: 0,
+          payment: { amount: 0, currency: 'GHS', payment_link: '' }
+        });
       } else if (status === 'failed' || error === 'true') {
         // Payment failed
         console.log('Payment failed');
@@ -433,70 +429,90 @@ export default function ResultsPage(_props: ResultsPageProps) {
     const isPreviousCheck = id && !new URLSearchParams(window.location.search).get('check_code');
 
     return (
-      <div className="flex flex-col items-center justify-center min-h-64 space-y-6">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {isPreviousCheck ? 'Retrieving Previous Check' : 'Processing Results'}
-          </h3>
-          <p className="text-gray-600 mb-4">
-            {isPreviousCheck
-              ? 'We\'re fetching your previous qualification check results.'
-              : 'We\'re retrieving your qualification results from our secure servers.'
-            }
-          </p>
-          <p className="text-sm text-gray-500 mb-6">
-            {isPreviousCheck
-              ? 'Your previous check results should appear shortly.'
-              : 'If you were redirected here after payment, your results should appear shortly. If not, please check your payment status.'
-            }
-          </p>
-          <div className="space-y-3">
-            <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-lg">
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center min-h-64 space-y-6">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {isPreviousCheck ? 'Check code verified' : 'Payment initiated successfully'}
             </div>
-            <button
-              onClick={() => window.history.back()}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ml-4"
-            >
-              Go Back
-            </button>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              {isPreviousCheck ? 'Previous Checks Not Available' : 'Processing Results'}
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {isPreviousCheck
+                ? 'Direct access to previous qualification check results is not supported.'
+                : 'We\'re retrieving your qualification results from our secure servers.'
+              }
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              {isPreviousCheck
+                ? 'Please use the main checker to perform new qualification checks.'
+                : 'If you were redirected here after payment, your results should appear shortly. If not, please check your payment status.'
+              }
+            </p>
+            <div className="space-y-3">
+              <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-lg">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {isPreviousCheck ? 'Feature not available' : 'Payment initiated successfully'}
+              </div>
+              <button
+                onClick={() => window.location.href = '/checker'}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ml-4"
+              >
+                Start New Check
+              </button>
+            </div>
           </div>
+    
+    
         </div>
-      </div>
-    );
-  }
+      </MainLayout>
+      );
+    }
 
   const selectedInstitution = result.school.name;
 
   // Single comprehensive results view - no multi-step
 
   return (
-    <div id="results-content" className="max-w-6xl mx-auto space-y-8">
-      {/* Custom animations for load more */}
-      <style>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
+    <MainLayout>
+      <Helmet>
+        <title>Programme Qualification Results - CutoffPoint.Africa</title>
+        <meta name="title" content="Programme Qualification Results - CutoffPoint.Africa" />
+        <meta name="description" content="View your WASSCE programme qualification results and see which university programmes you qualify for based on your grades." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://cutoffpoint.africa/" />
+        <meta property="og:title" content="Programme Qualification Results - CutoffPoint.Africa" />
+        <meta property="og:description" content="View your WASSCE programme qualification results and see which university programmes you qualify for based on your grades." />
+        <meta property="og:image" content="https://learninghana.com/wp-content/uploads/2022/09/cutoff-01.jpg" />
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://cutoffpoint.com.gh/" />
+        <meta property="twitter:title" content="Programme Qualification Results - CutoffPoint.Africa" />
+        <meta property="twitter:description" content="View your WASSCE programme qualification results and see which university programmes you qualify for based on your grades." />
+        <meta property="twitter:image" content="https://learninghana.com/wp-content/uploads/2022/09/cutoff-01.jpg" />
+        <meta name="keywords" content="wassce results, programme qualification, university admission, cutoff points" />
+      </Helmet>
+      <div id="results-content" className="max-w-6xl mx-auto space-y-8 py-6 px-4 sm:px-6 lg:px-8">
+        <style>{`
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
           }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
 
-        .animate-fade-in-up {
-          animation: fadeInUp 0.6s ease-out;
-        }
-      `}</style>
+          .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+          }
+        `}</style>
       {/* Header */}
       <div className="text-center bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 sm:p-8 rounded-xl">
         <h1 className="text-2xl sm:text-3xl font-bold mb-2">
@@ -656,14 +672,30 @@ export default function ResultsPage(_props: ResultsPageProps) {
                             </span>
                           </div>
 
-                          <button
-                            onClick={() => window.open(program.link, '_blank')}
-                            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-xs sm:text-sm font-medium w-full sm:w-auto"
-                          >
-                            <span className="hidden sm:inline">View Details</span>
-                            <span className="sm:hidden">Details</span>
-                            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2" />
-                          </button>
+                          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                            <button
+                              onClick={() => {
+                                console.log('Career button clicked for:', program.name);
+                                console.log('Setting selectedProgramForCareer state');
+                                setSelectedProgramForCareer({ name: program.name, description: program.description || '' });
+                                console.log('State set, selectedProgramForCareer should now be:', { name: program.name, description: program.description || '' });
+                              }}
+                              className="inline-flex items-center justify-center px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-sm font-medium"
+                            >
+                              <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                              <span className="hidden sm:inline">Career Options</span>
+                              <span className="sm:hidden">Careers</span>
+                            </button>
+
+                            <button
+                              onClick={() => window.open(program.link, '_blank')}
+                              className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-xs sm:text-sm font-medium"
+                            >
+                              <span className="hidden sm:inline">View Details</span>
+                              <span className="sm:hidden">Details</span>
+                              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -689,30 +721,6 @@ export default function ResultsPage(_props: ResultsPageProps) {
             </div>
           )}
   
-          {/* Schools Summary - After Programme List */}
-          <div className="bg-gray-50 p-4 sm:p-6 rounded-lg border border-gray-200 mt-6 sm:mt-8 animate-fade-in-up">
-            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Available in Institutions</h3>
-            <div className="grid grid-cols-1 gap-3 sm:gap-4">
-              {getProgrammesBySchool(result.qualified_programs).map(({ school, count }, index) => (
-                <div
-                  key={school}
-                  className="flex items-center justify-between bg-white p-3 sm:p-4 rounded-md border border-gray-200 hover:bg-gray-50 transition-all duration-300 animate-fade-in-up"
-                  style={{
-                    animationDelay: `${index * 150}ms`,
-                    animationFillMode: 'both'
-                  }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium text-gray-900 block truncate">{school}</span>
-                    <span className="text-xs text-gray-600">Educational Institution</span>
-                  </div>
-                  <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-100 text-blue-800 ml-2 sm:ml-3">
-                    {count} program{count !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
   
 
@@ -779,5 +787,6 @@ export default function ResultsPage(_props: ResultsPageProps) {
         </div>
       </div>
     </div>
+  </MainLayout>
   );
 }
