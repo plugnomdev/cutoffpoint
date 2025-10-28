@@ -17,7 +17,7 @@ type InputMethod = 'upload' | 'manual';
 export default function GradeInputStep({ formData, updateFields, onComplete: _onComplete }: GradeInputStepProps) {
   const { coreSubjects, electiveSubjects } = useChecker();
 
-  const [inputMethod, setInputMethod] = useState<InputMethod>(formData.gradeEntryMethod || 'upload');
+  const [inputMethod, setInputMethod] = useState<InputMethod>(formData.gradeEntryMethod || 'manual');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
@@ -232,17 +232,6 @@ export default function GradeInputStep({ formData, updateFields, onComplete: _on
       <div className="flex justify-center">
         <div className="bg-gray-100 p-1 rounded-lg inline-flex">
           <button
-            onClick={() => setInputMethod('upload')}
-            className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              inputMethod === 'upload'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <span className="text-lg mr-2">🚀</span>
-            AI Upload
-          </button>
-          <button
             onClick={() => {
               setInputMethod('manual');
               // Clear upload data when switching to manual mode
@@ -262,6 +251,17 @@ export default function GradeInputStep({ formData, updateFields, onComplete: _on
           >
             <Edit className="w-4 h-4 mr-2" />
             Manual Entry
+          </button>
+          <button
+            onClick={() => setInputMethod('upload')}
+            className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              inputMethod === 'upload'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <span className="text-lg mr-2">🚀</span>
+            Upload Results
           </button>
         </div>
       </div>

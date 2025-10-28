@@ -179,7 +179,6 @@ export default function GradeChecker() {
   }, [formData.background.country]);
 
   const steps = [
-    'Choose Method',
     'Grade Input',
     'Background',
     'Review & Payment',
@@ -341,29 +340,21 @@ export default function GradeChecker() {
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-[#2d3192] mb-1">
-                    {currentStep === 0 && "Choose ONE to enter your results"}
-                    {currentStep === 1 && "Enter your WASSCE grades"}
-                    {currentStep === 2 && (formData.background.fullName ? `Hello ${formData.background.fullName.split(' ')[0]}, kindly share more info below` : "Enter your background information")}
-                    {currentStep === 3 && "Review your details and complete payment"}
-                    {currentStep === 4 && "View your programme qualification results"}
+                    {currentStep === 0 && "Enter your WASSCE grades"}
+                    {currentStep === 1 && (formData.background.fullName ? `Hello ${formData.background.fullName.split(' ')[0]}, kindly share more info below` : "Enter your background information")}
+                    {currentStep === 2 && "Review your details and complete payment"}
+                    {currentStep === 3 && "View your programme qualification results"}
                   </h4>
                   <p className="text-xs text-[#2d3192]/80">
-                    {currentStep === 0 && "Choose manual if you don't have an image or PDF of your results"}
-                    {currentStep === 1 && "Add your grades for Core and Elective subjects to check your eligibility."}
-                    {currentStep === 2 && "This helps us determine your eligibility for programmes in your selected school."}
-                    {currentStep === 3 && "Review your information and complete secure payment to get your results."}
-                    {currentStep === 4 && "See which programmes you're qualified for based on your WASSCE grades."}
+                    {currentStep === 0 && "Add your grades for Core and Elective subjects to check your eligibility."}
+                    {currentStep === 1 && "This helps us determine your eligibility for programmes in your selected school."}
+                    {currentStep === 2 && "Review your information and complete secure payment to get your results."}
+                    {currentStep === 3 && "See which programmes you're qualified for based on your WASSCE grades."}
                   </p>
                 </div>
               </div>
             </div>
             {currentStep === 0 && (
-              <GradeEntryMethodStep
-                onComplete={next}
-              />
-            )}
-
-            {currentStep === 1 && (
               <GradeInputStep
                 formData={formData}
                 updateFields={updateFields}
@@ -371,7 +362,7 @@ export default function GradeChecker() {
               />
             )}
 
-            {currentStep === 2 && (
+            {currentStep === 1 && (
               <BackgroundForm
                 countries={countries}
                 schools={schools}
@@ -383,14 +374,14 @@ export default function GradeChecker() {
               />
             )}
 
-            {currentStep === 3 && (
+            {currentStep === 2 && (
               <ConfirmationForm
                 formData={formData}
                 electiveSubjects={electiveSubjects}
               />
             )}
 
-            {currentStep === 4 && <ResultsPage />}
+            {currentStep === 3 && <ResultsPage />}
 
             {/* Auto-save indicator */}
             {saved && (
@@ -403,51 +394,49 @@ export default function GradeChecker() {
             )}
 
             {/* Navigation Buttons - Ghana Inspired */}
-            {currentStep > 0 && (
-              <div className="mt-6 sm:mt-8 flex items-center justify-between">
+            <div className="mt-6 sm:mt-8 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={prev}
+                disabled={currentStep === 0}
+                className={`flex items-center justify-center px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 ${
+                  currentStep === 0
+                    ? 'invisible'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline ml-2 text-sm sm:text-base">Back</span>
+              </button>
+
+              <div className="text-sm text-gray-500 text-center px-2">
+                Step {currentStep + 1} of {steps.length}
+              </div>
+
+              {currentStep < steps.length - 1 ? (
                 <button
                   type="button"
-                  onClick={prev}
-                  disabled={currentStep === 0}
-                  className={`flex items-center justify-center px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 ${
-                    currentStep === 0
-                      ? 'invisible'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  onClick={next}
+                  disabled={currentStep === 2}
+                  className={`flex items-center justify-center px-3 sm:px-8 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-lg transform hover:scale-105 ${
+                    currentStep === 2
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
+                      : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
+                  }`}
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="hidden sm:inline ml-2 text-sm sm:text-base">Back</span>
+                  <span className="text-xs sm:text-sm">Continue</span>
+                  <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
                 </button>
-
-                <div className="text-sm text-gray-500 text-center px-2">
-                  Step {currentStep + 1} of {steps.length}
-                </div>
-
-                {currentStep < steps.length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={next}
-                    disabled={currentStep === 3}
-                    className={`flex items-center justify-center px-3 sm:px-8 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-lg transform hover:scale-105 ${
-                      currentStep === 3
-                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
-                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
-                    }`}
-                  >
-                    <span className="text-xs sm:text-sm">Continue</span>
-                    <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="flex items-center justify-center px-3 sm:px-6 py-2 sm:py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all duration-200"
-                  >
-                    <span className="text-xs sm:text-sm">Start New Check</span>
-                  </button>
-                )}
-              </div>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="flex items-center justify-center px-3 sm:px-6 py-2 sm:py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all duration-200"
+                >
+                  <span className="text-xs sm:text-sm">Start New Check</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </CheckerProvider>

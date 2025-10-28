@@ -1,5 +1,5 @@
 import { useChecker } from '../CheckerContext';
-import { CheckCircle, XCircle, ArrowRight, ChevronDown, Download, Printer, Briefcase } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, ChevronDown, Download, Share2, Briefcase } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import { useEffect, useState } from 'react';
 import { QualificationResult, fetchPastCheck } from '../../../services/api/universityApi';
@@ -7,6 +7,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import MainLayout from '../../../components/layout/MainLayout';
 import { Helmet } from 'react-helmet-async';
 import CareerModal from './CareerModal';
+import AdBanner from '../../../components/ads/AdBanner';
 
 type ResultsPageProps = Record<string, never>;
 
@@ -155,8 +156,14 @@ export default function ResultsPage(_props: ResultsPageProps) {
   }, [id]);
 
 
-  const handlePrint = () => {
-    window.print();
+  const handleShareToWhatsApp = () => {
+    if (!result) return;
+
+    const shareableLink = `${window.location.origin}/checker/results/${result.check_code}`;
+    const message = `🎓 Programme Qualification Results\n\nI just checked my qualification results at ${result.school.name}!\n\n✅ Qualified for ${result.total_qualified} programme${result.total_qualified !== 1 ? 's' : ''}\n📊 My aggregate score: ${result.summary.total_score}\n\nView my results: ${shareableLink}\n\nCheck yours at: ${window.location.origin}/checker\n\n#CutoffPoint #UniversityAdmission`;
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
 
@@ -413,8 +420,8 @@ export default function ResultsPage(_props: ResultsPageProps) {
               <!-- Footer -->
               <div class="footer">
                 <p><strong>Cut-off Point Calculator</strong> • Generated on ${currentDate}</p>
-                <p>This document serves as proof of program qualification for ${selectedInstitution}</p>
-                <p>For official admission, please contact the university directly</p>
+                <p>This document provides guidance for program selection at ${selectedInstitution}</p>
+                <p>For official admission requirements and processes, please contact the university directly</p>
               </div>
             </body>
           </html>
@@ -424,8 +431,8 @@ export default function ResultsPage(_props: ResultsPageProps) {
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      // Fallback to print
-      handlePrint();
+      // Fallback to share
+      handleShareToWhatsApp();
     }
   };
 
@@ -502,7 +509,7 @@ export default function ResultsPage(_props: ResultsPageProps) {
         <meta property="twitter:image" content="https://learninghana.com/wp-content/uploads/2022/09/cutoff-01.jpg" />
         <meta name="keywords" content="wassce results, programme qualification, university admission, cutoff points" />
       </Helmet>
-      <div id="results-content" className="max-w-6xl mx-auto space-y-8 py-6 px-4 sm:px-6 lg:px-8">
+      <div id="results-content" className="max-w-6xl mx-auto space-y-6 py-4 px-4 sm:px-6 lg:px-8">
         <style>{`
           @keyframes fadeInUp {
             from {
@@ -520,29 +527,19 @@ export default function ResultsPage(_props: ResultsPageProps) {
           }
         `}</style>
       {/* Header */}
-      <div className="text-center bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 sm:p-8 rounded-xl">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-          {id && !new URLSearchParams(window.location.search).get('check_code')
-            ? '🎓 Previous Check Results'
-            : '🎓 Programme Cut-off'
-          }
-        </h1>
+      <div className="text-center bg-gradient-to-r from-[#2d3192] to-blue-600 text-white p-4 sm:p-6 rounded-xl">
         <p className="text-blue-100 text-sm sm:text-base">
-          {id && !new URLSearchParams(window.location.search).get('check_code')
-            ? `Viewing your previous qualification check for ${selectedInstitution}`
-            : `Here are the programmes you qualify for in ${selectedInstitution}`
-          }
+          Here are the programmes you may qualify for at {selectedInstitution}
         </p>
       </div>
 
 
       {/* Qualified Programs */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-gray-900">Programs You Qualify For</h2>
-          <div className="text-sm text-gray-600">
-            {result.total_qualified} program{result.total_qualified !== 1 ? 's' : ''} in {selectedInstitution}
-          </div>
+      <div className="space-y-4">
+        <div className="mb-4">
+          <p className="text-sm sm:text-base text-gray-700">
+            Found {result.total_qualified} programme{result.total_qualified !== 1 ? 's' : ''} you qualify for at {selectedInstitution}
+          </p>
         </div>
 
         {(!result.qualified_programs || result.qualified_programs.length === 0) ? (
@@ -603,104 +600,132 @@ export default function ResultsPage(_props: ResultsPageProps) {
                       animationFillMode: 'both'
                     }}
                   >
-                    <div className="p-4 sm:p-6">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
-                            <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-xs sm:text-sm font-semibold text-blue-600">#{index + 1}</span>
+                    <div className="p-3 sm:p-4">
+                      {/* Mobile: Collapsed view - just name and buttons */}
+                      <div className="sm:hidden">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2 flex-1 min-w-0">
+                            <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-xs font-semibold text-blue-600">#{index + 1}</span>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words">
-                                {program.name}
-                              </h3>
-                              <p className="text-xs sm:text-sm text-gray-600 break-words">
-                                {result.school.name}
-                              </p>
-                            </div>
+                            <h3 className="text-sm font-semibold text-gray-900 break-words flex-1 min-w-0">
+                              {program.name}
+                            </h3>
                           </div>
-
-                          <div className="mt-2 sm:mt-3">
-                            <p className="text-xs sm:text-sm text-gray-700 line-clamp-2 break-words">{program.description}</p>
-                          </div>
+                          <button
+                            onClick={() => toggleGradeDetails(program.id)}
+                            className="flex-shrink-0 ml-2 p-1 text-gray-500 hover:text-gray-700"
+                          >
+                            <ChevronDown
+                              className={`w-4 h-4 transition-transform ${
+                                expandedGrades.has(program.id) ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </button>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 sm:ml-6 sm:flex-shrink-0">
-                          {/* Desktop: Show detailed grade info directly */}
-                          <div className="hidden sm:block text-center bg-gray-50 rounded-lg p-3">
-                            <div className="text-sm text-gray-600">Cutoff</div>
-                            <div className="text-xl font-bold text-gray-900">{program.max_grade}</div>
-                            <div className="text-xs text-gray-500">Yours: {studentScore}</div>
-                          </div>
-
-                          {/* Mobile: Dropdown for grade details */}
-                          <div className="sm:hidden w-full">
-                            <button
-                              onClick={() => toggleGradeDetails(program.id)}
-                              className="w-full text-left p-2 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="text-xs text-gray-600">Cutoff: {program.max_grade}</div>
-                                <ChevronDown
-                                  className={`w-4 h-4 text-gray-500 transition-transform ${
-                                    expandedGrades.has(program.id) ? 'rotate-180' : ''
-                                  }`}
-                                />
+                        {/* Mobile: Expanded details */}
+                        {expandedGrades.has(program.id) && (
+                          <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-3">
+                            <div className="text-center">
+                              <div className="text-sm text-gray-600">Cutoff</div>
+                              <div className="text-lg font-bold text-gray-900">{program.max_grade}</div>
+                              <div className="text-xs text-gray-500">Your Score: {studentScore}</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Difference: <span className={`font-bold ${cutoffDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {cutoffDiff > 0 ? '+' : ''}{cutoffDiff}
+                                </span>
                               </div>
-                            </button>
-
-                            {/* Expanded grade details */}
-                            {expandedGrades.has(program.id) && (
-                              <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                <div className="text-center">
-                                  <div className="text-sm font-medium text-blue-900">Detailed Breakdown</div>
-                                  <div className="text-xs text-blue-700 mt-1">
-                                    Cutoff: <span className="font-bold">{program.max_grade}</span>
-                                  </div>
-                                  <div className="text-xs text-blue-700">
-                                    Your Score: <span className="font-bold">{studentScore}</span>
-                                  </div>
-                                  <div className="text-xs text-blue-700 mt-1">
-                                    Difference: <span className={`font-bold ${cutoffDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                      {cutoffDiff > 0 ? '+' : ''}{cutoffDiff}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                            </div>
+                            <div className="text-center">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Eligible
+                              </span>
+                            </div>
                           </div>
+                        )}
 
-                          <div className="text-center">
-                            <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap ${statusColor}`}>
-                              <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                              <span className="hidden sm:inline">{competitiveness}</span>
-                              <span className="sm:hidden">Eligible</span>
-                            </span>
-                          </div>
-
-                          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-                            <button
-                              onClick={() => {
-                                console.log('Career button clicked for:', program.name);
-                                console.log('Setting selectedProgramForCareer state');
-                                setSelectedProgramForCareer({ name: program.name, description: program.description || '' });
-                                console.log('State set, selectedProgramForCareer should now be:', { name: program.name, description: program.description || '' });
-                              }}
-                              className="inline-flex items-center justify-center px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-sm font-medium"
-                            >
-                              <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                              <span className="hidden sm:inline">Career Options</span>
-                              <span className="sm:hidden">Careers</span>
-                            </button>
-
+                        {/* Mobile: Action buttons */}
+                        <div className="flex flex-col gap-2 mt-3">
+                          {program.link && program.link !== '#' && (
                             <button
                               onClick={() => window.open(program.link, '_blank')}
-                              className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-xs sm:text-sm font-medium"
+                              className="w-full text-left px-3 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-xs font-medium"
                             >
-                              <span className="hidden sm:inline">View Details</span>
-                              <span className="sm:hidden">Details</span>
-                              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2" />
+                              See overview and possible career options
                             </button>
+                          )}
+
+                          {(program as any).apply_link && (program as any).apply_link !== '#' && (
+                            <button
+                              onClick={() => window.open((program as any).apply_link, '_blank')}
+                              className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium"
+                            >
+                              Apply Now
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Desktop: Full expanded view */}
+                      <div className="hidden sm:block">
+                        <div className="flex flex-row items-center justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span className="text-sm font-semibold text-blue-600">#{index + 1}</span>
+                              </div>
+                              <div className="min-w-0 flex-1 flex items-center">
+                                <h3 className="text-lg font-semibold text-gray-900 break-words">
+                                  {program.name}
+                                </h3>
+                              </div>
+                            </div>
+
+                            <div className="mt-2">
+                              <p className="text-sm text-gray-700 line-clamp-2 break-words leading-tight">{program.description}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 ml-6 flex-shrink-0">
+                            {/* Desktop: Show detailed grade info directly */}
+                            <div className="text-center bg-gray-50 rounded-lg p-3">
+                              <div className="text-sm text-gray-600">Cutoff</div>
+                              <div className="text-xl font-bold text-gray-900">{program.max_grade}</div>
+                              <div className="text-xs text-gray-500">Yours: {studentScore}</div>
+                            </div>
+
+                            <div className="text-center">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${statusColor}`}>
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                {competitiveness}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col gap-2 w-auto">
+                              {program.link && program.link !== '#' && (
+                                <a
+                                  href={program.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+                                >
+                                  <span>See overview and possible career options</span>
+                                  <ArrowRight className="w-4 h-4 ml-2" />
+                                </a>
+                              )}
+
+                              {(program as any).apply_link && (program as any).apply_link !== '#' && (
+                                <button
+                                  onClick={() => window.open((program as any).apply_link, '_blank')}
+                                  className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                                >
+                                  Apply Now
+                                  <ArrowRight className="w-4 h-4 ml-2" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -726,25 +751,28 @@ export default function ResultsPage(_props: ResultsPageProps) {
               </p>
             </div>
           )}
-  
+
+          {/* Ad Banner - After Programs List */}
+          <AdBanner
+            title="Apply to KAAF University!"
+            description="Accepting A1 - C6 in 3 core and 3 electives with total aggregate not exceeding 24."
+            requirements="Candidates with bad grades can apply to our Pre School programme to improve them."
+            ctaText="Chat with us now"
+            ctaLink="https://wa.link/eogd1j"
+            variant="horizontal"
+            className="mt-6"
+          />
         </div>
-  
 
       {/* Footer Actions */}
-      <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200">
+      <div className="bg-gray-50 p-3 sm:p-4 rounded-xl border border-gray-200">
         <div className="flex flex-col gap-4 sm:gap-6">
           <div className="text-center">
             <h4 className="font-medium text-gray-900 mb-1 text-sm sm:text-base">
-              {id && !new URLSearchParams(window.location.search).get('check_code')
-                ? 'Previous Check Completed'
-                : 'Need to make changes?'
-              }
+              Qualification Check Complete
             </h4>
             <p className="text-xs sm:text-sm text-gray-600">
-              {id && !new URLSearchParams(window.location.search).get('check_code')
-                ? 'This is a record of your previous qualification check'
-                : 'You can update your information and check again'
-              }
+              Your results are ready. You can save, print, or explore career options for each program.
             </p>
           </div>
 
@@ -761,11 +789,11 @@ export default function ResultsPage(_props: ResultsPageProps) {
               </button>
 
               <button
-                onClick={handlePrint}
+                onClick={handleShareToWhatsApp}
                 className="flex-1 inline-flex items-center justify-center px-4 py-3 sm:py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm hover:shadow-md text-sm sm:text-base"
               >
-                <Printer className="w-4 h-4 mr-2" />
-                Print
+                <Share2 className="w-4 h-4 mr-2" />
+                Share on WhatsApp
               </button>
             </div>
 

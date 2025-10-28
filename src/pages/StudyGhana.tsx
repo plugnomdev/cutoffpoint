@@ -28,8 +28,18 @@ export default function StudyGhana() {
     <MainLayout>
       <>
         <Helmet>
-          <title>Study in Ghana | Complete University Guide</title>
-          <meta name="description" content="Comprehensive guide to studying in Ghana with universities, requirements, fees, and city information." />
+          <title>Study in Ghana - Over 12 Major Universities</title>
+          <meta name="description" content="World-class education in Africa's most stable democracy." />
+          <meta property="og:title" content="Study in Ghana - Over 12 Major Universities" />
+          <meta property="og:description" content="World-class education in Africa's most stable democracy." />
+          <meta property="og:image" content="https://schoolfinder.tortoisepath.com/wp-content/uploads/2024/07/University-of-Ghana-Legon-Accra-Ghana-SchoolFinder-TortoisePathcom-8.jpeg" />
+          <meta property="og:url" content="https://cutoffpoint.africa/study-ghana" />
+          <meta property="og:type" content="website" />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content="Study in Ghana - Over 12 Major Universities" />
+          <meta name="twitter:description" content="World-class education in Africa's most stable democracy." />
+          <meta name="twitter:image" content="https://schoolfinder.tortoisepath.com/wp-content/uploads/2024/07/University-of-Ghana-Legon-Accra-Ghana-SchoolFinder-TortoisePathcom-8.jpeg" />
+          <meta name="keywords" content="study in Ghana, universities in Ghana, Ghana education, African universities, international students Ghana, University of Ghana, KNUST, Ashesi University" />
         </Helmet>
 
         {/* Hero Section */}
