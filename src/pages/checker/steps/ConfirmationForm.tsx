@@ -52,6 +52,7 @@ export default function ConfirmationForm({
   const handlePayment = async () => {
     setPaymentProcessing(true);
     try {
+
       // Step 1: Create initial order to get a code
       const cleanPhone = formData.background.phoneNumber.replace(/\s+/g, ''); // Remove spaces
       // Convert Ghanaian local format to international format: +233XXXXXXXXX
@@ -68,17 +69,13 @@ export default function ConfirmationForm({
 
       const orderCode = initialResponse.code;
 
-      // Step 2: Convert grade strings to numbers (A1=1, B2=2, etc.)
+      // Step 3: Convert grade strings to numbers (A1=1, B2=2, etc.)
       const gradeToNumber = (grade: string): number => {
         const gradeMap: Record<string, number> = {
           'A1': 1, 'B2': 2, 'B3': 3, 'C4': 4, 'C5': 5, 'C6': 6, 'D7': 7, 'E8': 8, 'F9': 9
         };
         return gradeMap[grade] || 0;
       };
-
-      // The subjects are already properly mapped with IDs from the previous steps
-      // We just need to use the subject IDs that were stored during subject selection
-      // The formData should contain the proper subject IDs, not names
 
       // Map certificate type to ID
       const getCertificateTypeId = (certType: string): number => {
@@ -90,23 +87,18 @@ export default function ConfirmationForm({
         return certMap[certType] || 1;
       };
 
-      // Map program level to ID
+      // Map program level to ID (matches backend API)
       const getProgramTypeId = (programLevel: string): number => {
         const programMap: Record<string, number> = {
-          'Certificate': 1,
+          'Degree': 1,
           'Diploma': 2,
-          'Degree': 3
+          'Certificate': 3
         };
-        return programMap[programLevel] || 3;
+        console.log('DEBUG: Mapping programmeLevel', programLevel, 'to ID', programMap[programLevel] || 1);
+        return programMap[programLevel] || 1;
       };
 
-      // Get subject code directly from the API subject data
-      const subjectIdToCode = (subjectId: string): string => {
-        // The coreSubjectNames should contain the subject codes from the API
-        return formData.coreSubjectNames?.[parseInt(subjectId)] || `Subject ${subjectId}`;
-      };
-
-      // Step 3: Complete the check with the code from initial order
+      // Step 4: Complete the check with the code from initial order
       const checkRequest = {
         code: orderCode,
         school_id: formData.background.school?.id || 1,
@@ -148,7 +140,6 @@ export default function ConfirmationForm({
       const response = await submitQualificationCheck(checkRequest as any);
 
       console.log('Check Response:', response);
-      console.log('Response data structure:', response.data);
 
       if (response.success && response.data) {
         // Store the qualification results for immediate display after payment
@@ -197,6 +188,10 @@ export default function ConfirmationForm({
             <div>
               <dt className="text-xs sm:text-sm text-gray-500">Course Offered</dt>
               <dd className="text-xs sm:text-sm font-medium text-gray-900">{formData.background.courseOffered || 'Not provided'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs sm:text-sm text-gray-500">Certificate Type</dt>
+              <dd className="text-xs sm:text-sm font-medium text-gray-900">{formData.background.certificateType || 'Not provided'}</dd>
             </div>
             <div>
               <dt className="text-xs sm:text-sm text-gray-500">Programme Level</dt>

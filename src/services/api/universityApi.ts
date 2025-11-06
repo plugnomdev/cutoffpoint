@@ -219,18 +219,16 @@ export async function fetchGrades(): Promise<Grade[]> {
 }
 
 export interface CheckRequest {
-  background: {
-    courseOffered: string;
-    certificateType: string;
-    programmeLevel: string;
-    fullName: string;
-    phoneNumber: string;
-    country: { id: number; name: string; code: string; flag: string } | null;
-    school: { id: number; name: string; shortcode: string } | null;
+  code: string;
+  school_id: number;
+  cert_type_id: number;
+  programme_type_id: number;
+  country_id: number;
+  course_id: number;
+  results: {
+    core: Record<string, number>;
+    electives: ElectiveResult[];
   };
-  coreSubjects: Record<number, string>;
-  selectedElectives: string[];
-  electiveGrades: Record<string, string>;
 }
 
 export interface CheckResponse {
@@ -238,20 +236,8 @@ export interface CheckResponse {
   message: string;
   data: {
     check_code: string;
-    summary: {
-      total_score: number;
-      core_score: number;
-      elective_score: number;
-      core_grades: number[];
-      elective_grades: number[];
-    };
-    qualified_programs: Array<{
-      id: number;
-      name: string;
-      description: string;
-      max_grade: number;
-      link: string;
-    }>;
+    summary: GradeCheckSummary;
+    qualified_programs: QualifiedProgram[];
     total_qualified: number;
     school: {
       id: number;
