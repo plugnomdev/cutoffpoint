@@ -179,8 +179,8 @@ function SearchableSelect({
           placeholder={placeholder}
           disabled={disabled}
           className={`w-full pl-10 pr-10 py-3 text-base border-2 rounded-lg focus:outline-none focus:ring-2 ${disabled
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300'
-              : 'border-gray-300 focus:border-green-500 focus:ring-green-200 hover:border-green-400 bg-white'
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300'
+            : 'border-gray-300 focus:border-green-500 focus:ring-green-200 hover:border-green-400 bg-white'
             }`}
         />
         <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
@@ -303,20 +303,37 @@ export default function CombinedSubjectsForm({
   // Initialize core grades based on fetched subjects and existing form data
   const [coreGrades, setCoreGrades] = useState<Record<string, string>>({});
 
-  // Update core grades when subjects are fetched or form data changes
+  // Update core grades when subjects are fetched
   useEffect(() => {
-    if (fetchedCoreSubjects.length > 0) {
+    // Only initialize if we have subjects and haven't populated grades yet
+    // This prevents overwriting user edits and breaking the update loop
+    if (fetchedCoreSubjects.length > 0 && Object.keys(coreGrades).length === 0) {
+      console.log('Initializing core grades from formData:', formData.coreSubjects);
+
       const initialGrades: Record<string, string> = {};
+      let foundData = false;
+
       fetchedCoreSubjects.forEach((subject) => {
         // Use subject ID as key for consistency
         const key = `core_${subject.id}`;
-        // Initialize with existing grade if available
-        const existingGrade = formData.coreSubjects?.[subject.id] || '';
-        initialGrades[key] = existingGrade;
+        // Initialize with existing grade if available - check both number and string keys
+        const existingGrade = formData.coreSubjects?.[subject.id] ||
+          formData.coreSubjects?.[String(subject.id)];
+
+        // Only set if we have a value
+        if (existingGrade) {
+          initialGrades[key] = existingGrade;
+          foundData = true;
+        }
       });
-      setCoreGrades(initialGrades);
+
+      // Only update if we found some grades to restore
+      if (foundData) {
+        console.log('Restoring core grades:', initialGrades);
+        setCoreGrades(initialGrades);
+      }
     }
-  }, [fetchedCoreSubjects, formData.coreSubjects]);
+  }, [fetchedCoreSubjects, formData.coreSubjects]); // Run when subjects load OR saved data loads
 
   // Convert subject IDs back to names for display/selection
   const getElectiveNameFromId = (id: string) => {

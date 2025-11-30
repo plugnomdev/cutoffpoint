@@ -1,6 +1,6 @@
 import { Country, School, ProgramType, fetchProgramTypes } from '../../../services/api/universityApi';
 import { FormData } from '../types';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Building2, Award, User, Phone, ChevronDown, Search, X } from 'lucide-react';
 
 // Modern Searchable Select Component
@@ -86,11 +86,10 @@ function SearchableSelect({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        className={`w-full p-2 text-left border rounded-lg bg-white transition-all duration-200 flex items-center justify-between ${
-          disabled
-            ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-            : 'hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
-        } ${isOpen ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'}`}
+        className={`w-full p-2 text-left border rounded-lg bg-white transition-all duration-200 flex items-center justify-between ${disabled
+          ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+          : 'hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
+          } ${isOpen ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'}`}
       >
         <div className="flex items-center flex-1 min-w-0">
           {/* Show selected country's flag or default icon */}
@@ -103,9 +102,8 @@ function SearchableSelect({
             {selectedOption ? selectedOption.label : displayPlaceholder}
           </span>
         </div>
-        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ml-2 ${
-          isOpen ? 'rotate-180' : ''
-        }`} />
+        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''
+          }`} />
       </button>
 
       {isOpen && (
@@ -153,9 +151,8 @@ function SearchableSelect({
                     key={option.value}
                     type="button"
                     onClick={() => handleSelect(option.value)}
-                    className={`w-full p-2 text-left text-sm hover:bg-blue-50 transition-colors duration-150 flex items-center ${
-                      index === highlightedIndex ? 'bg-blue-50' : ''
-                    } ${option.value === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'}`}
+                    className={`w-full p-2 text-left text-sm hover:bg-blue-50 transition-colors duration-150 flex items-center ${index === highlightedIndex ? 'bg-blue-50' : ''
+                      } ${option.value === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'}`}
                   >
                     {option.flag && <span className="mr-2">{option.flag}</span>}
                     <span className="truncate">{option.label}</span>
@@ -198,33 +195,87 @@ export default function BackgroundFormStep2({
 }: BackgroundFormStep2Props) {
   const [programTypes, setProgramTypes] = useState<ProgramType[]>([]);
   const [debouncedName, setDebouncedName] = useState(fullName);
+  const [debouncedPhone, setDebouncedPhone] = useState(phoneNumber);
 
-  // Debounced update for name field to prevent excessive auto-saves on mobile
-  const debouncedUpdateName = useCallback(
-    (value: string) => {
-      const timeoutId = setTimeout(() => {
-        updateFields({
-          background: {
-            courseOffered,
-            certificateType,
-            fullName: value,
-            programmeLevel,
-            phoneNumber,
-            country,
-            school
-          }
-        });
-      }, 500); // 500ms delay
+  // Refs to hold timeout IDs so we can clear them
+  const nameTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const phoneTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-      return () => clearTimeout(timeoutId);
-    },
-    [updateFields, courseOffered, certificateType, programmeLevel, phoneNumber, country, school]
-  );
-
-  // Update debounced name when prop changes
+  // Cleanup timeouts on unmount
   useEffect(() => {
-    setDebouncedName(fullName);
+    return () => {
+      if (nameTimeoutRef.current) clearTimeout(nameTimeoutRef.current);
+      if (phoneTimeoutRef.current) clearTimeout(phoneTimeoutRef.current);
+    };
+  }, []);
+
+  // Debounced update for name field
+  const handleNameChange = (value: string) => {
+    setDebouncedName(value);
+
+    // Clear existing timeout
+    if (nameTimeoutRef.current) {
+      clearTimeout(nameTimeoutRef.current);
+    }
+
+    // Set new timeout
+    nameTimeoutRef.current = setTimeout(() => {
+      updateFields({
+        background: {
+          courseOffered,
+          certificateType,
+          fullName: value,
+          programmeLevel,
+          phoneNumber: debouncedPhone, // Use current local phone
+          country,
+          school
+        }
+      });
+    }, 500);
+  };
+
+  // Debounced update for phone number field
+  const handlePhoneChange = (value: string) => {
+    setDebouncedPhone(value);
+
+    // Clear existing timeout
+    if (phoneTimeoutRef.current) {
+      clearTimeout(phoneTimeoutRef.current);
+    }
+
+    // Set new timeout
+    phoneTimeoutRef.current = setTimeout(() => {
+      updateFields({
+        background: {
+          courseOffered,
+          certificateType,
+          fullName: debouncedName, // Use current local name
+          programmeLevel,
+          phoneNumber: value,
+          country,
+          school
+        }
+      });
+    }, 500);
+  };
+
+  // Update local state when props change (only if different to avoid cursor jumps)
+  useEffect(() => {
+    if (fullName !== debouncedName) {
+      // Only update if the prop is significantly different (e.g. loaded from save)
+      // We don't want to overwrite if the user is currently typing (which we can't easily detect here, 
+      // but the debounce logic should prevent the loop)
+      // A safer check is to only update if the local state is empty or we are sure it's an external update
+      // For now, we'll trust the debounce to prevent race conditions
+      setDebouncedName(fullName);
+    }
   }, [fullName]);
+
+  useEffect(() => {
+    if (phoneNumber !== debouncedPhone) {
+      setDebouncedPhone(phoneNumber);
+    }
+  }, [phoneNumber]);
 
   // Fetch program types on mount
   useEffect(() => {
@@ -262,8 +313,8 @@ export default function BackgroundFormStep2({
                 certificateType,
                 school: selected,
                 programmeLevel,
-                fullName,
-                phoneNumber,
+                fullName: debouncedName,
+                phoneNumber: debouncedPhone,
                 country
               }
             });
@@ -291,17 +342,16 @@ export default function BackgroundFormStep2({
                   courseOffered,
                   certificateType,
                   programmeLevel: program.name as 'Certificate' | 'Diploma' | 'Degree',
-                  fullName,
-                  phoneNumber,
+                  fullName: debouncedName,
+                  phoneNumber: debouncedPhone,
                   country,
                   school
                 }
               })}
-              className={`p-1 sm:p-2 border rounded-lg text-center text-xs ${
-                programmeLevel === program.name
-                  ? 'border-blue-600 bg-blue-50 text-blue-600'
-                  : 'border-gray-300 hover:border-gray-400'
-              }`}
+              className={`p-1 sm:p-2 border rounded-lg text-center text-xs ${programmeLevel === program.name
+                ? 'border-blue-600 bg-blue-50 text-blue-600'
+                : 'border-gray-300 hover:border-gray-400'
+                }`}
             >
               {program.name}
             </button>
@@ -319,12 +369,8 @@ export default function BackgroundFormStep2({
           type="text"
           id="fullName"
           value={debouncedName}
-          onChange={e => {
-            const value = e.target.value;
-            setDebouncedName(value);
-            debouncedUpdateName(value);
-          }}
-          className="w-full p-2 sm:p-2 border rounded-lg text-sm"
+          onChange={e => handleNameChange(e.target.value)}
+          className="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           placeholder="Enter your full name"
         />
       </div>
@@ -338,20 +384,11 @@ export default function BackgroundFormStep2({
         <input
           type="tel"
           id="phoneNumber"
-          value={phoneNumber}
-          onChange={e => updateFields({
-            background: {
-              courseOffered,
-              certificateType,
-              phoneNumber: e.target.value,
-              programmeLevel,
-              fullName,
-              country,
-              school
-            }
-          })}
-          className="w-full p-2 sm:p-3 border rounded-lg text-sm"
+          value={debouncedPhone}
+          onChange={e => handlePhoneChange(e.target.value)}
+          className="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           placeholder="Enter your phone number"
+          inputMode="tel"
         />
         <p className="text-xs text-gray-500 opacity-75 mt-1">SMS will be sent to this</p>
       </div>

@@ -102,12 +102,19 @@ export default function GradeChecker() {
     loadProgress();
   }, []);
 
-  // Auto-save when form data changes
+  // Auto-save when form data changes (Debounced)
   useEffect(() => {
-    if (Object.keys(formData.background).some(key => formData.background[key as keyof typeof formData.background])) {
-      saveProgress();
+    const hasData = Object.keys(formData.background).some(key => formData.background[key as keyof typeof formData.background]);
+
+    if (hasData) {
+      // Debounce the save operation to avoid saving on every keystroke
+      const timeoutId = setTimeout(() => {
+        saveProgress();
+      }, 1000); // Wait 1 second after last change before saving
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [saveProgress]); // Only depend on the memoized saveProgress function
+  }, [saveProgress]); // saveProgress changes when formData changes
 
   // Hide saved indicator after 2 seconds
   useEffect(() => {
@@ -279,13 +286,12 @@ export default function GradeChecker() {
                   {steps.map((step, index) => (
                     <div key={step} className="flex flex-col items-center flex-1">
                       <div
-                        className={`relative flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all duration-300 ${
-                          currentStep >= index
+                        className={`relative flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all duration-300 ${currentStep >= index
                             ? 'bg-blue-600 border-blue-600 text-white shadow-lg'
                             : currentStep === index - 1
-                            ? 'bg-indigo-100 border-indigo-400 text-indigo-700'
-                            : 'bg-gray-100 border-gray-300 text-gray-400'
-                        }`}
+                              ? 'bg-indigo-100 border-indigo-400 text-indigo-700'
+                              : 'bg-gray-100 border-gray-300 text-gray-400'
+                          }`}
                       >
                         {currentStep > index ? (
                           <CheckCircle className="w-6 h-6" />
@@ -297,9 +303,8 @@ export default function GradeChecker() {
                         )}
                       </div>
                       <span
-                        className={`mt-2 text-xs font-medium text-center transition-colors duration-300 ${
-                          currentStep >= index ? 'text-blue-600' : 'text-gray-500'
-                        }`}
+                        className={`mt-2 text-xs font-medium text-center transition-colors duration-300 ${currentStep >= index ? 'text-blue-600' : 'text-gray-500'
+                          }`}
                       >
                         {step}
                       </span>
@@ -321,9 +326,8 @@ export default function GradeChecker() {
                     {steps.map((_, index) => (
                       <div
                         key={index}
-                        className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-                          currentStep >= index ? 'bg-blue-500' : 'bg-gray-300'
-                        }`}
+                        className={`w-2 h-2 rounded-full transition-colors duration-300 ${currentStep >= index ? 'bg-blue-500' : 'bg-gray-300'
+                          }`}
                       />
                     ))}
                   </div>
@@ -411,11 +415,10 @@ export default function GradeChecker() {
                 type="button"
                 onClick={prev}
                 disabled={currentStep === 0}
-                className={`flex items-center justify-center px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 ${
-                  currentStep === 0
+                className={`flex items-center justify-center px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 ${currentStep === 0
                     ? 'invisible'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden sm:inline ml-2 text-sm sm:text-base">Back</span>
@@ -430,11 +433,10 @@ export default function GradeChecker() {
                   type="button"
                   onClick={next}
                   disabled={currentStep === 3}
-                  className={`flex items-center justify-center px-3 sm:px-8 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-lg transform hover:scale-105 ${
-                    currentStep === 3
+                  className={`flex items-center justify-center px-3 sm:px-8 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-lg transform hover:scale-105 ${currentStep === 3
                       ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
                       : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
-                  }`}
+                    }`}
                 >
                   <span className="text-xs sm:text-sm">Continue</span>
                   <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
