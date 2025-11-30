@@ -291,7 +291,7 @@ export default function ConfirmationForm({
 
           <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 inline-block mb-3 sm:mb-4 shadow-sm">
             <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-              GHS 12
+              GHS 20
             </div>
             <div className="text-xs sm:text-sm text-gray-600">Programme Cut-off Checker</div>
           </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Subject, fetchSubjectsByType } from '../../../services/api/universityApi';
 import { CoreSubjects } from '../types';
@@ -23,19 +23,18 @@ function SearchableSelect({
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [dropdownStyles, setDropdownStyles] = useState({});
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const filteredOptions = options.filter(option =>
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const selectedOption = options.find(option => option.value === value);
-
   const calculateDropdownPosition = () => {
-    if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
+    if (inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
       const dropdownHeight = 256; // max-h-64 = 256px
       const spaceBelow = viewportHeight - rect.bottom;
@@ -59,26 +58,60 @@ function SearchableSelect({
     }
   };
 
-  const handleToggle = () => {
+  const handleInputFocus = () => {
+    console.log('Input focused, current isOpen:', isOpen);
     if (!isOpen) {
       calculateDropdownPosition();
+      setIsOpen(true);
+      setSearchTerm('');
+      setIsSearching(true);
+      
+      // Force a re-render to ensure dropdown is shown
+      setTimeout(() => {
+        if (inputRef.current) {
+          calculateDropdownPosition();
+        }
+      }, 0);
     }
-    setIsOpen(!isOpen);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    setSearchTerm(inputValue);
+    setIsSearching(true);
+    if (inputValue.length > 0) {
+      calculateDropdownPosition();
+      setIsOpen(true);
+    }
   };
 
   const handleSelect = (optionValue: string) => {
-    onChange(optionValue);
-    setIsOpen(false);
-    setSearchTerm('');
-    setHighlightedIndex(-1);
+    console.log('handleSelect called with:', optionValue);
+    const option = options.find(opt => opt.value === optionValue);
+    if (option) {
+      console.log('Option found:', option);
+      // Update the search term and value
+      setSearchTerm(option.label);
+      setIsSearching(false);
+      
+      // Call the parent's onChange with the selected value
+      if (onChange) {
+        console.log('Calling onChange with:', optionValue);
+        onChange(optionValue);
+      } else {
+        console.warn('No onChange handler provided to SearchableSelect');
+      }
+      
+      setHighlightedIndex(-1);
+      // Keep the dropdown open for multiple selections
+    } else {
+      console.log('Option not found for value:', optionValue);
+      console.log('Available options:', options);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        setIsOpen(true);
-        e.preventDefault();
-      }
       return;
     }
 
@@ -103,93 +136,108 @@ function SearchableSelect({
         break;
       case 'Escape':
         setIsOpen(false);
-        setSearchTerm('');
         setHighlightedIndex(-1);
         break;
     }
   };
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setHighlightedIndex(-1);
+        
+        // If we have a value but no search term, set the search term to the selected value's label
+        if (value && !searchTerm) {
+          const selectedOption = options.find(opt => opt.value === value);
+          if (selectedOption) {
+            setSearchTerm(selectedOption.label);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [value, searchTerm, options]);
+
   return (
     <div className="relative" style={{ isolation: 'isolate' }}>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => !disabled && handleToggle()}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        className={`w-full p-2 sm:p-3 text-left border rounded-lg bg-white transition-all duration-200 flex items-center justify-between text-sm ${
-          disabled
-            ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-            : 'hover:border-green-400 focus:border-green-500 focus:ring-2 focus:ring-green-200'
-        } ${isOpen ? 'border-green-500 ring-2 ring-green-200' : 'border-gray-300'}`}
-      >
-        <span className={`truncate ${!selectedOption ? 'text-gray-500' : 'text-gray-900'}`}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 flex-shrink-0 ml-2 ${
-          isOpen ? 'rotate-180' : ''
-        }`} />
-      </button>
+      {/* Search Input with integrated dropdown */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={isSearching ? searchTerm : (options.find(opt => opt.value === value)?.label || '')}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onClick={() => {
+            console.log('Input clicked, forcing dropdown open');
+            if (!isOpen) {
+              setIsOpen(true);
+              calculateDropdownPosition();
+            }
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`w-full pl-10 pr-10 py-2 text-sm border rounded-md focus:outline-none focus:ring-1 ${
+            disabled
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 focus:border-green-500 focus:ring-green-200 hover:border-green-400 cursor-pointer'
+          }`}
+          readOnly={!isSearching}
+        />
+        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        {searchTerm && (
+          <button
+            onClick={() => setSearchTerm('')}
+            className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
 
       {isOpen && createPortal(
         <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-9998"
-            onClick={() => setIsOpen(false)}
-          />
-
           {/* Dropdown */}
           <div
-            className="fixed bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-hidden"
-            style={dropdownStyles}
+            className="fixed bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-auto z-50"
+            style={{
+              ...dropdownStyles,
+              display: isOpen ? 'block' : 'none',
+              opacity: isOpen ? 1 : 0,
+              transition: 'opacity 0.2s ease-in-out',
+              pointerEvents: isOpen ? 'auto' : 'none'
+            }}
           >
-            {/* Search Input */}
-            <div className="p-2 border-b border-gray-200">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search subjects..."
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-green-500"
-                  onClick={(e) => e.stopPropagation()}
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-
             {/* Options */}
             <div className="max-h-48 overflow-y-auto">
-              {filteredOptions.length === 0 ? (
-                <div className="p-3 text-sm text-gray-500 text-center">
-                  No subjects found
+              {filteredOptions.map((option, index) => (
+                <div 
+                  key={option.value}
+                  className={`w-full p-3 text-left hover:bg-green-50 transition-colors duration-150 cursor-pointer ${
+                    index === highlightedIndex ? 'bg-green-50' : ''
+                  } ${option.value === value ? 'bg-green-100 text-green-900' : 'text-gray-900'} flex items-center`}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // Prevent input blur
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Option clicked:', option);
+                    handleSelect(option.value);
+                  }}
+                >
+                  <span className="truncate text-xs sm:text-sm flex-1">{option.label}</span>
+                  {option.value === value && (
+                    <div className="ml-2 w-2 h-2 bg-green-600 rounded-full"></div>
+                  )}
                 </div>
-              ) : (
-                filteredOptions.map((option, index) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => handleSelect(option.value)}
-                    className={`w-full p-3 text-left hover:bg-green-50 transition-colors duration-150 ${
-                      index === highlightedIndex ? 'bg-green-50' : ''
-                    } ${option.value === value ? 'bg-green-100 text-green-900' : 'text-gray-900'}`}
-                  >
-                    <span className="truncate text-xs sm:text-sm">{option.label}</span>
-                    {option.value === value && (
-                      <div className="ml-auto w-2 h-2 bg-green-600 rounded-full"></div>
-                    )}
-                  </button>
-                ))
-              )}
+              ))}
             </div>
           </div>
         </>,
@@ -287,8 +335,45 @@ export default function CombinedSubjectsForm({
     ...(formData.electiveGrades || {})
   });
 
+  // Memoize elective IDs calculation
+  const electiveIds = useMemo(() => {
+    return electiveSelections.map(name => {
+      if (!name || name.trim() === '') return '';
+      const subject = fetchedElectiveSubjects.find(s => s.name === name);
+      console.log('Elective subject lookup:', { name, subject, id: subject?.id });
+      return subject ? subject.id.toString() : '';
+    });
+  }, [electiveSelections, fetchedElectiveSubjects]);
+
+  // Log state changes for debugging
+  useEffect(() => {
+    console.log('Elective selections:', electiveSelections);
+    console.log('Elective IDs:', electiveIds);
+  }, [electiveSelections, electiveIds]);
+
+  // Use refs to track previous values and prevent unnecessary updates
+  const prevValuesRef = useRef({
+    coreGrades: {} as Record<string, string>,
+    electiveSelections: [] as string[],
+    electiveGrades: {} as Record<string, string>
+  });
+
   // Update parent when data changes
   useEffect(() => {
+    // Skip initial render and only update when we have data
+    if (fetchedCoreSubjects.length === 0) return;
+
+    // Check if anything actually changed
+    const { coreGrades: prevCoreGrades, electiveSelections: prevElectiveSelections, electiveGrades: prevElectiveGrades } = prevValuesRef.current;
+    
+    const coreGradesChanged = JSON.stringify(coreGrades) !== JSON.stringify(prevCoreGrades);
+    const electiveSelectionsChanged = JSON.stringify(electiveSelections) !== JSON.stringify(prevElectiveSelections);
+    const electiveGradesChanged = JSON.stringify(electiveGrades) !== JSON.stringify(prevElectiveGrades);
+
+    if (!coreGradesChanged && !electiveSelectionsChanged && !electiveGradesChanged) {
+      return; // No changes, skip update
+    }
+
     // Transform core grades to the expected format for ConfirmationForm
     const transformedCoreSubjects = Object.entries(coreGrades).reduce((acc, [key, grade]) => {
       if (grade && key.startsWith('core_')) {
@@ -304,32 +389,67 @@ export default function CombinedSubjectsForm({
         const subjectId = key.replace('core_', '');
         const subject = fetchedCoreSubjects.find(s => s.id === parseInt(subjectId));
         if (subject) {
-          acc[parseInt(subjectId)] = subject.subject_code; // Use subject code for core subjects
+          acc[parseInt(subjectId)] = subject.subject_code;
         }
       }
       return acc;
-    }, { ...coreSubjectNames } as Record<number, string>);
+    }, {} as Record<number, string>);
 
-    // Create a mapping of subject names to subject_ids for electives (backend expects IDs for electives)
-    const electiveIds = electiveSelections.map(name => {
+    // Calculate elective IDs
+    const currentElectiveIds = electiveSelections.map(name => {
       if (!name || name.trim() === '') return '';
       const subject = fetchedElectiveSubjects.find(s => s.name === name);
-      console.log('Elective subject lookup:', { name, subject, id: subject?.id });
       return subject ? subject.id.toString() : '';
     });
 
+    console.log('Updating parent with new data');
     updateFields({
       coreSubjects: transformedCoreSubjects,
       coreSubjectNames: updatedCoreSubjectNames,
-      selectedElectives: electiveIds,
+      selectedElectives: currentElectiveIds,
       electiveGrades
     });
-  }, [coreGrades, electiveSelections, electiveGrades]); // Removed updateFields from dependencies
+
+    // Update refs with current values
+    prevValuesRef.current = {
+      coreGrades: { ...coreGrades },
+      electiveSelections: [...electiveSelections],
+      electiveGrades: { ...electiveGrades }
+    };
+  }, [coreGrades, electiveSelections, electiveGrades, fetchedCoreSubjects, fetchedElectiveSubjects, updateFields]);
 
   const updateElective = (index: number, subjectName: string) => {
+    console.log('Updating elective:', { index, subjectName, currentSelections: electiveSelections });
+    
+    // Create a new array with the updated selection
     const newSelections = [...electiveSelections];
     newSelections[index] = subjectName;
+    
+    console.log('New selections:', newSelections);
     setElectiveSelections(newSelections);
+    
+    // Update the grades object to include the new selection
+    if (subjectName && !electiveGrades[subjectName]) {
+      console.log('Adding new grade entry for:', subjectName);
+      setElectiveGrades(prev => ({
+        ...prev,
+        [subjectName]: ''
+      }));
+    }
+    
+    // Force update parent component
+    setTimeout(() => {
+      const electiveIds = newSelections.map(name => {
+        if (!name) return '';
+        const subject = fetchedElectiveSubjects.find(s => s.name === name);
+        return subject ? subject.id.toString() : '';
+      });
+      
+      updateFields({
+        selectedElectives: electiveIds,
+        electiveGrades
+      });
+    }, 0);
   };
 
   const updateElectiveGrade = (subjectName: string, grade: string) => {
@@ -428,11 +548,17 @@ export default function CombinedSubjectsForm({
                 <div key={index} className="flex items-center space-x-2 sm:space-x-3">
                   <div className="flex-1 min-w-0">
                     <SearchableSelect
-                      options={fetchedElectiveSubjects.map((subject) => ({
-                        value: subject.name,
-                        label: subject.name
-                      }))}
-                      value={electiveSelections[index]}
+                      key={`elective-${index}-${electiveSelections[index]}`} // Force re-render when value changes
+                      options={fetchedElectiveSubjects
+                        .filter(subject => 
+                          // Only show subjects that aren't already selected in other fields
+                          !electiveSelections.some((sel, i) => i !== index && sel === subject.name)
+                        )
+                        .map((subject) => ({
+                          value: subject.name,
+                          label: subject.name
+                        }))}
+                      value={electiveSelections[index] || ''}
                       onChange={(value) => updateElective(index, value)}
                       placeholder="Select elective subject..."
                     />

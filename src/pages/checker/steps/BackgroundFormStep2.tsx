@@ -1,8 +1,7 @@
-import { Country, School, CertificateType, ProgramType, Course, fetchCertificateTypes, fetchProgramTypes, fetchCourses } from '../../../services/api/universityApi';
+import { Country, School, ProgramType, fetchProgramTypes } from '../../../services/api/universityApi';
 import { FormData } from '../types';
-import { useLocation } from 'react-router-dom';
 import { useEffect, useState, useCallback } from 'react';
-import { Globe, Building2, Award, FileText, BookOpen, User, Phone, ChevronDown, Search, X } from 'lucide-react';
+import { Building2, Award, User, Phone, ChevronDown, Search, X } from 'lucide-react';
 
 // Modern Searchable Select Component
 interface SearchableSelectProps {
@@ -174,42 +173,30 @@ function SearchableSelect({
   );
 }
 
-type BackgroundFormProps = {
+type BackgroundFormStep2Props = {
   courseOffered: string;
+  certificateType: string;
   programmeLevel: 'Certificate' | 'Diploma' | 'Degree';
   fullName: string;
   phoneNumber: string;
   country: Country | null;
   school: School | null;
-  countries: Country[];
   schools: School[];
   updateFields: (fields: Partial<FormData>) => void;
-  extractedName?: string;
-  detectedCountry?: string;
-  extractedCertificateType?: string;
-  extractedCourseOffered?: string;
 }
 
-export default function BackgroundForm({
+export default function BackgroundFormStep2({
   courseOffered,
+  certificateType,
   programmeLevel,
   fullName,
   phoneNumber,
   country,
   school,
-  countries,
   schools,
-  updateFields,
-  extractedName,
-  detectedCountry,
-  extractedCertificateType,
-  extractedCourseOffered
-}: BackgroundFormProps) {
-  const location = useLocation();
-  const [certificateTypes, setCertificateTypes] = useState<CertificateType[]>([]);
-  const [certificateType, setCertificateType] = useState<string>('WASSCE');
+  updateFields
+}: BackgroundFormStep2Props) {
   const [programTypes, setProgramTypes] = useState<ProgramType[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
   const [debouncedName, setDebouncedName] = useState(fullName);
 
   // Debounced update for name field to prevent excessive auto-saves on mobile
@@ -218,10 +205,10 @@ export default function BackgroundForm({
       const timeoutId = setTimeout(() => {
         updateFields({
           background: {
-            fullName: value,
-            certificateType: certificateType || 'WASSCE',
-            programmeLevel,
             courseOffered,
+            certificateType,
+            fullName: value,
+            programmeLevel,
             phoneNumber,
             country,
             school
@@ -231,7 +218,7 @@ export default function BackgroundForm({
 
       return () => clearTimeout(timeoutId);
     },
-    [updateFields, certificateType, programmeLevel, courseOffered, phoneNumber, country, school]
+    [updateFields, courseOffered, certificateType, programmeLevel, phoneNumber, country, school]
   );
 
   // Update debounced name when prop changes
@@ -239,23 +226,8 @@ export default function BackgroundForm({
     setDebouncedName(fullName);
   }, [fullName]);
 
-  // Fetch certificate types on mount
+  // Fetch program types on mount
   useEffect(() => {
-    const loadCertificateTypes = async () => {
-      try {
-        const types = await fetchCertificateTypes();
-        setCertificateTypes(types);
-        if (types.length > 0) {
-          setCertificateType(types[0].name);
-        }
-      } catch (error) {
-        console.error('Failed to load certificate types:', error);
-      }
-    };
-
-    loadCertificateTypes();
-    
-    // Load program types
     const loadProgramTypes = async () => {
       try {
         const types = await fetchProgramTypes();
@@ -264,208 +236,125 @@ export default function BackgroundForm({
         console.error('Failed to load program types:', error);
       }
     };
-    
+
     loadProgramTypes();
-
-    // Load courses
-    const loadCourses = async () => {
-      try {
-        const coursesData = await fetchCourses();
-        setCourses(coursesData);
-      } catch (error) {
-        console.error('Failed to load courses:', error);
-      }
-    };
-    
-    loadCourses();
   }, []);
-
-  // Check for pre-filled data from homepage
-  useEffect(() => {
-    if (location.state?.country && location.state?.school) {
-      updateFields({
-        background: {
-          courseOffered,
-          certificateType: 'WASSCE',
-          programmeLevel,
-          fullName,
-          phoneNumber,
-          country: location.state.country,
-          school: location.state.school
-        }
-      });
-    }
-  }, [location.state]);
-
-  // Always ensure Ghana is selected as the default country
-  useEffect(() => {
-    if (countries.length > 0) {
-      const ghanaCountry = countries.find(c => c.name.toLowerCase() === 'ghana');
-      if (ghanaCountry && (!country || country.name.toLowerCase() !== 'ghana')) {
-        updateFields({
-          background: {
-            courseOffered,
-            certificateType: certificateType || extractedCertificateType || 'WASSCE',
-            programmeLevel,
-            fullName: extractedName || fullName,
-            phoneNumber,
-            country: ghanaCountry,
-            school: null
-          }
-        });
-      }
-    }
-  }, [countries, country]); // Only depend on countries and current country
-
-  // Set defaults from extracted data
-  useEffect(() => {
-    if (countries.length === 0) return; // Wait for countries to load
-
-    const backgroundUpdates: any = {
-      courseOffered,
-      certificateType: certificateType || extractedCertificateType || 'WASSCE',
-      programmeLevel,
-      fullName: extractedName || fullName,
-      phoneNumber,
-      country,
-      school
-    };
-
-    let hasUpdates = false;
-
-    if (extractedName && !fullName) {
-      backgroundUpdates.fullName = extractedName;
-      hasUpdates = true;
-    }
-
-    if (extractedCertificateType && !certificateType) {
-      backgroundUpdates.certificateType = extractedCertificateType;
-      hasUpdates = true;
-    }
-
-    // Match extracted course offered with API courses
-    if (extractedCourseOffered && !courseOffered) {
-      const matchedCourse = courses.find(course => {
-        const courseName = course.name.toLowerCase();
-        const extractedName = extractedCourseOffered.toLowerCase();
-
-        // Exact match
-        if (courseName === extractedName) return true;
-
-        // Partial matches
-        if (courseName.includes(extractedName) || extractedName.includes(courseName)) return true;
-
-        // Handle common course variations
-        const courseMappings = {
-          'science': ['general science', 'integrated science', 'pure science', 'science'],
-          'arts': ['arts', 'humanities', 'languages'],
-          'business': ['business', 'commercial', 'accounting'],
-          'technical': ['technical', 'vocational', 'industrial'],
-          'agricultural': ['agricultural', 'agriculture', 'farming'],
-          'home economics': ['home economics', 'home science', 'management in living']
-        };
-
-        // Check if extracted course matches any variation
-        for (const [_, variations] of Object.entries(courseMappings)) {
-          if (variations.some(v => extractedName.includes(v)) &&
-              variations.some(v => courseName.includes(v))) {
-            return true;
-          }
-        }
-
-        return false;
-      });
-
-      if (matchedCourse) {
-        backgroundUpdates.courseOffered = matchedCourse.name;
-        hasUpdates = true;
-      }
-    }
-
-    if (detectedCountry && country && country.name.toLowerCase() === 'ghana') {
-      // Only update if different from Ghana
-      const detectedCountryObj = countries.find(c => c.name.toLowerCase() === detectedCountry.toLowerCase());
-      if (detectedCountryObj && detectedCountryObj.id !== country.id) {
-        backgroundUpdates.country = detectedCountryObj;
-        backgroundUpdates.school = null; // Reset school when country changes
-        hasUpdates = true;
-      }
-    }
-
-    if (hasUpdates) {
-      updateFields({
-        background: backgroundUpdates
-      });
-    }
-  }, [extractedName, extractedCertificateType, extractedCourseOffered, detectedCountry, countries, courses, fullName, certificateType, courseOffered, country]);
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      {/* Country Selection */}
+      {/* School Selection */}
       <div className="space-y-1 sm:space-y-2">
         <label className="flex items-center text-xs font-medium text-gray-700">
-          <Globe className="w-4 h-4 mr-2 text-blue-600" />
-          Which country do you want to school in?
+          <Building2 className="w-4 h-4 mr-2 text-green-600" />
+          <span className="text-xs">{country ? `Which school in ${country.name} do you want to apply to?` : 'Choose School'}</span>
         </label>
         <SearchableSelect
-          options={countries.map(c => ({
-            value: c.code,
-            label: c.name,
-            flag: c.flag
+          options={schools.map(s => ({
+            value: String(s.id),
+            label: s.name
           }))}
-          value={country ? country.code : (countries.find(c => c.name.toLowerCase() === 'ghana')?.code || '')}
+          value={school ? String(school.id) : ''}
           onChange={(value) => {
-            const selected = countries.find(c => c.code === value) || null;
+            const selected = schools.find(s => String(s.id) === value) || null;
             updateFields({
               background: {
                 courseOffered,
-                certificateType: certificateType || 'WASSCE',
+                certificateType,
+                school: selected,
                 programmeLevel,
                 fullName,
                 phoneNumber,
-                country: selected,
-                school: null
+                country
               }
             });
           }}
-          placeholder="Select Country"
+          placeholder="Select school"
+          disabled={!country}
           _required
-          icon={<Globe className="w-4 h-4 text-blue-600" />}
-          showSelectedFlag={true}
+          icon={<Building2 className="w-4 h-4 text-green-600" />}
         />
       </div>
 
-      {/* Course Offered - Always visible, right after country */}
-      <div className="space-y-1 sm:space-y-2">
-        <label className="flex items-center text-xs font-medium text-gray-700">
-          <BookOpen className="w-4 h-4 mr-2 text-indigo-600" />
-          <span className="text-xs">Which course did you study in SHS?</span>
+      {/* Programme Level */}
+      <div>
+        <label className="flex items-center text-xs font-medium text-gray-700 mb-2">
+          <Award className="w-4 h-4 mr-2 text-purple-600" />
+          <span className="text-xs">What programme level do you want to pursue?</span>
         </label>
-        <SearchableSelect
-          options={courses.map(course => ({
-            value: course.name,
-            label: course.name
-          }))}
-          value={courseOffered}
-          onChange={(value) => updateFields({
+        <div className="grid grid-cols-3 gap-1 sm:gap-4">
+          {programTypes.map(program => (
+            <button
+              key={program.id}
+              type="button"
+              onClick={() => updateFields({
+                background: {
+                  courseOffered,
+                  certificateType,
+                  programmeLevel: program.name as 'Certificate' | 'Diploma' | 'Degree',
+                  fullName,
+                  phoneNumber,
+                  country,
+                  school
+                }
+              })}
+              className={`p-1 sm:p-2 border rounded-lg text-center text-xs ${
+                programmeLevel === program.name
+                  ? 'border-blue-600 bg-blue-50 text-blue-600'
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
+            >
+              {program.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Full Name */}
+      <div>
+        <label htmlFor="fullName" className="flex items-center text-xs font-medium text-gray-700 mb-2">
+          <User className="w-4 h-4 mr-2 text-teal-600" />
+          <span className="text-xs">Full Name</span>
+        </label>
+        <input
+          type="text"
+          id="fullName"
+          value={debouncedName}
+          onChange={e => {
+            const value = e.target.value;
+            setDebouncedName(value);
+            debouncedUpdateName(value);
+          }}
+          className="w-full p-2 sm:p-2 border rounded-lg text-sm"
+          placeholder="Enter your full name"
+        />
+      </div>
+
+      {/* Phone Number */}
+      <div>
+        <label htmlFor="phoneNumber" className="flex items-center text-xs font-medium text-gray-700 mb-2">
+          <Phone className="w-4 h-4 mr-2 text-pink-600" />
+          <span className="text-xs">Kindly share your active phone number</span>
+        </label>
+        <input
+          type="tel"
+          id="phoneNumber"
+          value={phoneNumber}
+          onChange={e => updateFields({
             background: {
-              courseOffered: value,
-              certificateType: certificateType || 'WASSCE',
+              courseOffered,
+              certificateType,
+              phoneNumber: e.target.value,
               programmeLevel,
               fullName,
-              phoneNumber,
               country,
               school
             }
           })}
-          placeholder="Select Course"
-          _required
-          icon={<BookOpen className="w-4 h-4 text-indigo-600" />}
+          className="w-full p-2 sm:p-3 border rounded-lg text-sm"
+          placeholder="Enter your phone number"
         />
+        <p className="text-xs text-gray-500 opacity-75 mt-1">SMS will be sent to this</p>
       </div>
-
-
-
     </div>
   );
 }

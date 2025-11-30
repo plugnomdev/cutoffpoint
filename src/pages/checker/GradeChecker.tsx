@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import BackgroundForm from './steps/BackgroundForm';
+import BackgroundFormStep2 from './steps/BackgroundFormStep2';
 import GradeInputStep from './steps/GradeInputStep';
 import GradeEntryMethodStep from './steps/GradeEntryMethodStep';
 import ConfirmationForm from './steps/ConfirmationForm';
@@ -180,7 +181,8 @@ export default function GradeChecker() {
 
   const steps = [
     'Grade Input',
-    'Background',
+    'Background Step 1',
+    'Background Step 2',
     'Review & Payment',
     'Results'
   ];
@@ -341,15 +343,17 @@ export default function GradeChecker() {
                 <div>
                   <h4 className="text-sm font-medium text-[#2d3192] mb-1">
                     {currentStep === 0 && "Enter your WASSCE grades"}
-                    {currentStep === 1 && (formData.background.fullName ? `Hello ${formData.background.fullName.split(' ')[0]}, kindly share more info below` : "Enter your background information")}
-                    {currentStep === 2 && "Review your details and complete payment"}
-                    {currentStep === 3 && "View your programme qualification results"}
+                    {currentStep === 1 && "Select your certificate type, country, and course"}
+                    {currentStep === 2 && "Choose your school, programme level, and enter your details"}
+                    {currentStep === 3 && "Review your details and complete payment"}
+                    {currentStep === 4 && "View your programme qualification results"}
                   </h4>
                   <p className="text-xs text-[#2d3192]/80">
                     {currentStep === 0 && "Add your grades for Core and Elective subjects to check your eligibility."}
-                    {currentStep === 1 && "This helps us determine your eligibility for programmes in your selected school."}
-                    {currentStep === 2 && "Review your information and complete secure payment to get your results."}
-                    {currentStep === 3 && "See which programmes you're qualified for based on your WASSCE grades."}
+                    {currentStep === 1 && "Tell us about your certificate and educational background."}
+                    {currentStep === 2 && "Select your preferred school and programme, then provide your contact details."}
+                    {currentStep === 3 && "Review your information and complete secure payment to get your results."}
+                    {currentStep === 4 && "See which programmes you're qualified for based on your WASSCE grades."}
                   </p>
                 </div>
               </div>
@@ -375,13 +379,21 @@ export default function GradeChecker() {
             )}
 
             {currentStep === 2 && (
+              <BackgroundFormStep2
+                {...formData.background}
+                schools={schools}
+                updateFields={updateFields}
+              />
+            )}
+
+            {currentStep === 3 && (
               <ConfirmationForm
                 formData={formData}
                 electiveSubjects={electiveSubjects}
               />
             )}
 
-            {currentStep === 3 && <ResultsPage />}
+            {currentStep === 4 && <ResultsPage />}
 
             {/* Auto-save indicator */}
             {saved && (
@@ -417,9 +429,9 @@ export default function GradeChecker() {
                 <button
                   type="button"
                   onClick={next}
-                  disabled={currentStep === 2}
+                  disabled={currentStep === 3}
                   className={`flex items-center justify-center px-3 sm:px-8 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 shadow-lg transform hover:scale-105 ${
-                    currentStep === 2
+                    currentStep === 3
                       ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-60'
                       : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
                   }`}
