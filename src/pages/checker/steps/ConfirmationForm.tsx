@@ -283,10 +283,10 @@ export default function ConfirmationForm({
                   <div className="space-y-2 sm:space-y-3">
                     {formData.selectedElectives.map((subjectId, index) => {
                       const displayName = getElectiveSubjectName(subjectId);
-                      // Get grade by subject name, not ID
-                      const gradeKeys = Object.keys(formData.electiveGrades || {});
-                      const grade = gradeKeys[index] ? formData.electiveGrades[gradeKeys[index]] : '';
-                      console.log('📋 Displaying elective:', { subjectId, displayName, grade, gradeKeys, index });
+                      // Get grade by subject name directly
+                      const grade = displayName && formData.electiveGrades ? formData.electiveGrades[displayName] : '';
+
+                      console.log('📋 Displaying elective:', { subjectId, displayName, grade, index });
                       return (
                         <div key={subjectId} className="flex justify-between items-center">
                           <span className="text-[10px] sm:text-xs font-medium text-gray-700 truncate">{displayName || subjectId}</span>
