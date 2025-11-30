@@ -32,6 +32,9 @@ function SearchableSelect({
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Only show dropdown if user has typed something
+  const shouldShowDropdown = isOpen && searchTerm.length > 0 && filteredOptions.length > 0;
+
   const calculateDropdownPosition = () => {
     if (inputRef.current) {
       const rect = inputRef.current.getBoundingClientRect();
@@ -59,59 +62,47 @@ function SearchableSelect({
   };
 
   const handleInputFocus = () => {
-    console.log('Input focused, current isOpen:', isOpen);
-    if (!isOpen) {
-      calculateDropdownPosition();
-      setIsOpen(true);
+    setIsSearching(true);
+    // Clear the input when focused to allow fresh search
+    if (!searchTerm) {
       setSearchTerm('');
-      setIsSearching(true);
-      
-      // Force a re-render to ensure dropdown is shown
-      setTimeout(() => {
-        if (inputRef.current) {
-          calculateDropdownPosition();
-        }
-      }, 0);
     }
+    calculateDropdownPosition();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     setSearchTerm(inputValue);
     setIsSearching(true);
+
+    // Open dropdown and calculate position when user types
     if (inputValue.length > 0) {
-      calculateDropdownPosition();
       setIsOpen(true);
+      calculateDropdownPosition();
+    } else {
+      setIsOpen(false);
     }
   };
 
   const handleSelect = (optionValue: string) => {
-    console.log('handleSelect called with:', optionValue);
     const option = options.find(opt => opt.value === optionValue);
     if (option) {
-      console.log('Option found:', option);
-      // Update the search term and value
+      // Update the search term to show selected value
       setSearchTerm(option.label);
       setIsSearching(false);
-      
+      setIsOpen(false);
+
       // Call the parent's onChange with the selected value
       if (onChange) {
-        console.log('Calling onChange with:', optionValue);
         onChange(optionValue);
-      } else {
-        console.warn('No onChange handler provided to SearchableSelect');
       }
-      
+
       setHighlightedIndex(-1);
-      // Keep the dropdown open for multiple selections
-    } else {
-      console.log('Option not found for value:', optionValue);
-      console.log('Available options:', options);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen) {
+    if (!shouldShowDropdown) {
       return;
     }
 
@@ -147,14 +138,15 @@ function SearchableSelect({
       if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setHighlightedIndex(-1);
-        
-        // If we have a value but no search term, set the search term to the selected value's label
+
+        // If we have a value but no search term, show the selected value
         if (value && !searchTerm) {
           const selectedOption = options.find(opt => opt.value === value);
           if (selectedOption) {
             setSearchTerm(selectedOption.label);
           }
         }
+        setIsSearching(false);
       }
     };
 
@@ -162,85 +154,94 @@ function SearchableSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [value, searchTerm, options]);
 
+  // Update search term when value changes externally
+  useEffect(() => {
+    if (value && !isSearching) {
+      const selectedOption = options.find(opt => opt.value === value);
+      if (selectedOption) {
+        setSearchTerm(selectedOption.label);
+      }
+    }
+  }, [value, options, isSearching]);
+
   return (
     <div className="relative" style={{ isolation: 'isolate' }}>
-      {/* Search Input with integrated dropdown */}
+      {/* Search Input */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           ref={inputRef}
           type="text"
-          value={isSearching ? searchTerm : (options.find(opt => opt.value === value)?.label || '')}
+          value={searchTerm}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
-          onClick={() => {
-            console.log('Input clicked, forcing dropdown open');
-            if (!isOpen) {
-              setIsOpen(true);
-              calculateDropdownPosition();
-            }
-          }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full pl-10 pr-10 py-2 text-sm border rounded-md focus:outline-none focus:ring-1 ${
-            disabled
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'border-gray-300 focus:border-green-500 focus:ring-green-200 hover:border-green-400 cursor-pointer'
-          }`}
-          readOnly={!isSearching}
+          className={`w-full pl-10 pr-10 py-3 text-base border-2 rounded-lg focus:outline-none focus:ring-2 ${disabled
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300'
+              : 'border-gray-300 focus:border-green-500 focus:ring-green-200 hover:border-green-400 bg-white'
+            }`}
         />
-        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-        {searchTerm && (
+        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+        {searchTerm && isSearching && (
           <button
-            onClick={() => setSearchTerm('')}
-            className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            onClick={(e) => {
+              e.preventDefault();
+              setSearchTerm('');
+              setIsOpen(false);
+              if (inputRef.current) {
+                inputRef.current.focus();
+              }
+            }}
+            className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+            type="button"
           >
             <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {isOpen && createPortal(
-        <>
-          {/* Dropdown */}
-          <div
-            className="fixed bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-auto z-50"
-            style={{
-              ...dropdownStyles,
-              display: isOpen ? 'block' : 'none',
-              opacity: isOpen ? 1 : 0,
-              transition: 'opacity 0.2s ease-in-out',
-              pointerEvents: isOpen ? 'auto' : 'none'
-            }}
-          >
-            {/* Options */}
-            <div className="max-h-48 overflow-y-auto">
-              {filteredOptions.map((option, index) => (
-                <div 
-                  key={option.value}
-                  className={`w-full p-3 text-left hover:bg-green-50 transition-colors duration-150 cursor-pointer ${
-                    index === highlightedIndex ? 'bg-green-50' : ''
-                  } ${option.value === value ? 'bg-green-100 text-green-900' : 'text-gray-900'} flex items-center`}
-                  onMouseDown={(e) => {
-                    e.preventDefault(); // Prevent input blur
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log('Option clicked:', option);
-                    handleSelect(option.value);
-                  }}
-                >
-                  <span className="truncate text-xs sm:text-sm flex-1">{option.label}</span>
-                  {option.value === value && (
-                    <div className="ml-2 w-2 h-2 bg-green-600 rounded-full"></div>
-                  )}
-                </div>
-              ))}
-            </div>
+      {/* Dropdown - Only show when user has typed something */}
+      {shouldShowDropdown && createPortal(
+        <div
+          className="fixed bg-white border-2 border-green-200 rounded-lg shadow-xl max-h-64 overflow-auto z-50"
+          style={{
+            ...dropdownStyles,
+            display: 'block',
+            opacity: 1
+          }}
+        >
+          {/* Show count of results */}
+          <div className="px-3 py-2 bg-green-50 border-b border-green-100 text-xs text-green-700 font-medium">
+            {filteredOptions.length} subject{filteredOptions.length !== 1 ? 's' : ''} found
           </div>
-        </>,
+
+          {/* Options */}
+          <div className="max-h-48 overflow-y-auto">
+            {filteredOptions.map((option, index) => (
+              <div
+                key={option.value}
+                className={`w-full p-3 text-left hover:bg-green-50 transition-colors duration-150 cursor-pointer ${index === highlightedIndex ? 'bg-green-50' : ''
+                  } ${option.value === value ? 'bg-green-100 text-green-900 font-semibold' : 'text-gray-900'} flex items-center`}
+                onMouseDown={(e) => {
+                  e.preventDefault(); // Prevent input blur
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(option.value);
+                }}
+                onMouseEnter={() => setHighlightedIndex(index)}
+              >
+                <span className="truncate text-sm flex-1">{option.label}</span>
+                {option.value === value && (
+                  <div className="ml-2 w-2 h-2 bg-green-600 rounded-full"></div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>,
         document.body
       )}
     </div>
@@ -365,7 +366,7 @@ export default function CombinedSubjectsForm({
 
     // Check if anything actually changed
     const { coreGrades: prevCoreGrades, electiveSelections: prevElectiveSelections, electiveGrades: prevElectiveGrades } = prevValuesRef.current;
-    
+
     const coreGradesChanged = JSON.stringify(coreGrades) !== JSON.stringify(prevCoreGrades);
     const electiveSelectionsChanged = JSON.stringify(electiveSelections) !== JSON.stringify(prevElectiveSelections);
     const electiveGradesChanged = JSON.stringify(electiveGrades) !== JSON.stringify(prevElectiveGrades);
@@ -420,14 +421,14 @@ export default function CombinedSubjectsForm({
 
   const updateElective = (index: number, subjectName: string) => {
     console.log('Updating elective:', { index, subjectName, currentSelections: electiveSelections });
-    
+
     // Create a new array with the updated selection
     const newSelections = [...electiveSelections];
     newSelections[index] = subjectName;
-    
+
     console.log('New selections:', newSelections);
     setElectiveSelections(newSelections);
-    
+
     // Update the grades object to include the new selection
     if (subjectName && !electiveGrades[subjectName]) {
       console.log('Adding new grade entry for:', subjectName);
@@ -436,7 +437,7 @@ export default function CombinedSubjectsForm({
         [subjectName]: ''
       }));
     }
-    
+
     // Force update parent component
     setTimeout(() => {
       const electiveIds = newSelections.map(name => {
@@ -444,7 +445,7 @@ export default function CombinedSubjectsForm({
         const subject = fetchedElectiveSubjects.find(s => s.name === name);
         return subject ? subject.id.toString() : '';
       });
-      
+
       updateFields({
         selectedElectives: electiveIds,
         electiveGrades
@@ -462,62 +463,85 @@ export default function CombinedSubjectsForm({
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="text-center">
-        <h2 className="text-base sm:text-lg font-bold text-gray-900">Subject Grades</h2>
-        <p className="text-gray-600 mt-1 text-xs sm:text-sm">Select your core subjects and electives with grades</p>
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900">Enter Your Grades</h2>
+        <p className="text-gray-600 mt-1 text-sm">Select your subjects and enter your grades</p>
       </div>
 
       {/* Full-width stacked layout with collapsible sections */}
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-4">
         {/* Core Subjects Section */}
-        <div className="bg-white border border-gray-200 rounded-lg">
+        <div className="bg-white border-2 border-blue-200 rounded-xl shadow-sm overflow-hidden">
           <button
             onClick={() => setCoreExpanded(!coreExpanded)}
-            className="w-full p-2 sm:p-3 bg-blue-50 border-b border-gray-200 hover:bg-blue-100 transition-colors duration-200 flex items-center justify-between"
+            className="w-full p-4 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-150 transition-all duration-200 flex items-center justify-between"
           >
-            <h3 className="text-xs sm:text-sm font-semibold text-blue-900">Core Subjects</h3>
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-bold">4</span>
+              </div>
+              <h3 className="text-sm sm:text-base font-bold text-blue-900">Core Subjects</h3>
+            </div>
             {coreExpanded ? (
-              <ChevronUp className="w-5 h-5 text-blue-600" />
+              <ChevronUp className="w-6 h-6 text-blue-600" />
             ) : (
-              <ChevronDown className="w-5 h-5 text-blue-600" />
+              <ChevronDown className="w-6 h-6 text-blue-600" />
             )}
           </button>
 
-          <div className={`relative transition-all duration-300 ease-in-out ${
-            coreExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-          }`}>
-            <div className="p-4 space-y-4">
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${coreExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+            }`}>
+            <div className="p-4 space-y-3">
               {loading ? (
-                <div className="flex items-center justify-center py-6 sm:py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-t-2 border-b-2 border-blue-500"></div>
-                  <span className="ml-2 sm:ml-3 text-xs sm:text-sm text-gray-600">Loading core subjects...</span>
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                  <span className="ml-3 text-sm text-gray-600">Loading subjects...</span>
                 </div>
               ) : (
-                fetchedCoreSubjects.map((subject) => {
+                fetchedCoreSubjects.map((subject, idx) => {
                   const key = `core_${subject.id}`;
 
                   return (
-                    <div key={subject.id} className="flex items-center justify-between">
-                      <div className="flex items-center flex-1 min-w-0">
-                        <span className="font-medium text-gray-900 text-xs sm:text-sm truncate">{subject.name}</span>
-                      </div>
-                      <select
-                        value={coreGrades[key] || ''}
-                        onChange={(e) => {
-                          const newGrades = {
-                            ...coreGrades,
-                            [key]: e.target.value
-                          };
-                          setCoreGrades(newGrades);
-                        }}
-                        className="w-20 sm:w-24 p-1.5 sm:p-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 flex-shrink-0 ml-2"
-                      >
-                        <option value="">Grade</option>
-                        {availableGrades.map((grade) => (
-                          <option key={grade.id} value={grade.name}>
-                            {grade.name}
-                          </option>
-                        ))}
-                      </select>
+                    <div key={subject.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                      <label className="block mb-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-gray-900 text-sm flex items-center">
+                            <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-700 rounded-full text-xs font-bold mr-2">
+                              {idx + 1}
+                            </span>
+                            {subject.name}
+                          </span>
+                          {coreGrades[key] && (
+                            <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                              {coreGrades[key]}
+                            </span>
+                          )}
+                        </div>
+                        <select
+                          value={coreGrades[key] || ''}
+                          onChange={(e) => {
+                            const newGrades = {
+                              ...coreGrades,
+                              [key]: e.target.value
+                            };
+                            setCoreGrades(newGrades);
+                          }}
+                          className="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none cursor-pointer"
+                          style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 0.75rem center',
+                            backgroundSize: '1.5em 1.5em',
+                            paddingRight: '2.5rem'
+                          }}
+                        >
+                          <option value="">Select grade...</option>
+                          {availableGrades.map((grade) => (
+                            <option key={grade.id} value={grade.name}>
+                              {grade.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                     </div>
                   );
                 })
@@ -527,31 +551,50 @@ export default function CombinedSubjectsForm({
         </div>
 
         {/* Electives Section */}
-        <div className="bg-white border border-gray-200 rounded-lg">
+        <div className="bg-white border-2 border-green-200 rounded-xl shadow-sm overflow-hidden">
           <button
             onClick={() => setElectivesExpanded(!electivesExpanded)}
-            className="w-full p-2 sm:p-3 bg-green-50 border-b border-gray-200 hover:bg-green-100 transition-colors duration-200 flex items-center justify-between"
+            className="w-full p-4 bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-150 transition-all duration-200 flex items-center justify-between"
           >
-            <h3 className="text-xs sm:text-sm font-semibold text-green-900">Elective Subjects</h3>
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-bold">4</span>
+              </div>
+              <h3 className="text-sm sm:text-base font-bold text-green-900">Elective Subjects</h3>
+            </div>
             {electivesExpanded ? (
-              <ChevronUp className="w-5 h-5 text-green-600" />
+              <ChevronUp className="w-6 h-6 text-green-600" />
             ) : (
-              <ChevronDown className="w-5 h-5 text-green-600" />
+              <ChevronDown className="w-6 h-6 text-green-600" />
             )}
           </button>
 
-          <div className={`relative transition-all duration-300 ease-in-out ${
-            electivesExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-          }`}>
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${electivesExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+            }`}>
             <div className="p-4 space-y-4">
               {[0, 1, 2, 3].map((index) => (
-                <div key={index} className="flex items-center space-x-2 sm:space-x-3">
-                  <div className="flex-1 min-w-0">
+                <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="font-semibold text-gray-700 text-sm flex items-center">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-green-100 text-green-700 rounded-full text-xs font-bold mr-2">
+                        {index + 1}
+                      </span>
+                      Elective {index + 1}
+                    </span>
+                    {electiveSelections[index] && electiveGrades[electiveSelections[index]] && (
+                      <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded">
+                        {electiveGrades[electiveSelections[index]]}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Subject Selection */}
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Subject</label>
                     <SearchableSelect
-                      key={`elective-${index}-${electiveSelections[index]}`} // Force re-render when value changes
+                      key={`elective-${index}-${electiveSelections[index]}`}
                       options={fetchedElectiveSubjects
-                        .filter(subject => 
-                          // Only show subjects that aren't already selected in other fields
+                        .filter(subject =>
                           !electiveSelections.some((sel, i) => i !== index && sel === subject.name)
                         )
                         .map((subject) => ({
@@ -560,17 +603,27 @@ export default function CombinedSubjectsForm({
                         }))}
                       value={electiveSelections[index] || ''}
                       onChange={(value) => updateElective(index, value)}
-                      placeholder="Select elective subject..."
+                      placeholder="Search and select subject..."
                     />
                   </div>
-                  <div className="w-20 sm:w-24 flex-shrink-0">
+
+                  {/* Grade Selection */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Grade</label>
                     <select
                       value={electiveSelections[index] ? electiveGrades[electiveSelections[index]] || '' : ''}
                       onChange={(e) => updateElectiveGrade(electiveSelections[index], e.target.value)}
                       disabled={!electiveSelections[index]}
-                      className="w-full p-1.5 sm:p-2 border border-gray-300 rounded-md text-xs sm:text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 disabled:cursor-not-allowed bg-white appearance-none"
+                      style={{
+                        backgroundImage: electiveSelections[index] ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` : 'none',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 0.75rem center',
+                        backgroundSize: '1.5em 1.5em',
+                        paddingRight: '2.5rem'
+                      }}
                     >
-                      <option value="">Grade</option>
+                      <option value="">Select grade...</option>
                       {availableGrades.map((grade) => (
                         <option key={grade.id} value={grade.name}>
                           {grade.name}
