@@ -87,11 +87,10 @@ function SearchableSelect({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        className={`w-full p-2 text-left border rounded-lg bg-white transition-all duration-200 flex items-center justify-between ${
-          disabled
-            ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-            : 'hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
-        } ${isOpen ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'}`}
+        className={`w-full p-2 text-left border rounded-lg bg-white transition-all duration-200 flex items-center justify-between ${disabled
+          ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+          : 'hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
+          } ${isOpen ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'}`}
       >
         <div className="flex items-center flex-1 min-w-0">
           {/* Show selected country's flag or default icon */}
@@ -104,9 +103,8 @@ function SearchableSelect({
             {selectedOption ? selectedOption.label : displayPlaceholder}
           </span>
         </div>
-        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ml-2 ${
-          isOpen ? 'rotate-180' : ''
-        }`} />
+        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''
+          }`} />
       </button>
 
       {isOpen && (
@@ -154,9 +152,8 @@ function SearchableSelect({
                     key={option.value}
                     type="button"
                     onClick={() => handleSelect(option.value)}
-                    className={`w-full p-2 text-left text-sm hover:bg-blue-50 transition-colors duration-150 flex items-center ${
-                      index === highlightedIndex ? 'bg-blue-50' : ''
-                    } ${option.value === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'}`}
+                    className={`w-full p-2 text-left text-sm hover:bg-blue-50 transition-colors duration-150 flex items-center ${index === highlightedIndex ? 'bg-blue-50' : ''
+                      } ${option.value === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'}`}
                   >
                     {option.flag && <span className="mr-2">{option.flag}</span>}
                     <span className="truncate">{option.label}</span>
@@ -254,7 +251,7 @@ export default function BackgroundForm({
     };
 
     loadCertificateTypes();
-    
+
     // Load program types
     const loadProgramTypes = async () => {
       try {
@@ -264,7 +261,7 @@ export default function BackgroundForm({
         console.error('Failed to load program types:', error);
       }
     };
-    
+
     loadProgramTypes();
 
     // Load courses
@@ -276,7 +273,7 @@ export default function BackgroundForm({
         console.error('Failed to load courses:', error);
       }
     };
-    
+
     loadCourses();
   }, []);
 
@@ -297,11 +294,11 @@ export default function BackgroundForm({
     }
   }, [location.state]);
 
-  // Always ensure Ghana is selected as the default country
+  // Always ensure Ghana is selected as the default country (only on initial load)
   useEffect(() => {
-    if (countries.length > 0) {
+    if (countries.length > 0 && !country) {
       const ghanaCountry = countries.find(c => c.name.toLowerCase() === 'ghana');
-      if (ghanaCountry && (!country || country.name.toLowerCase() !== 'ghana')) {
+      if (ghanaCountry) {
         updateFields({
           background: {
             courseOffered,
@@ -315,11 +312,11 @@ export default function BackgroundForm({
         });
       }
     }
-  }, [countries, country]); // Only depend on countries and current country
+  }, [countries.length]); // Only run when countries are loaded
 
-  // Set defaults from extracted data
+  // Set defaults from extracted data (only on initial load)
   useEffect(() => {
-    if (countries.length === 0) return; // Wait for countries to load
+    if (countries.length === 0 || courses.length === 0) return; // Wait for data to load
 
     const backgroundUpdates: any = {
       courseOffered,
@@ -368,7 +365,7 @@ export default function BackgroundForm({
         // Check if extracted course matches any variation
         for (const [_, variations] of Object.entries(courseMappings)) {
           if (variations.some(v => extractedName.includes(v)) &&
-              variations.some(v => courseName.includes(v))) {
+            variations.some(v => courseName.includes(v))) {
             return true;
           }
         }
@@ -397,7 +394,7 @@ export default function BackgroundForm({
         background: backgroundUpdates
       });
     }
-  }, [extractedName, extractedCertificateType, extractedCourseOffered, detectedCountry, countries, courses, fullName, certificateType, courseOffered, country]);
+  }, [extractedName, extractedCertificateType, extractedCourseOffered, detectedCountry, countries.length, courses.length]); // Only depend on extracted data and data loading
 
   return (
     <div className="space-y-4 sm:space-y-5">

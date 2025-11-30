@@ -234,10 +234,10 @@ export default function HomePage() {
         setLoadingSchools(false);
       }
     };
-    if (selectedCountry) {
+    if (selectedCountry && countries.length > 0) {
       fetchSchools();
     }
-  }, [selectedCountry, countries]);
+  }, [selectedCountry]);
 
   const handleContinue = () => {
     if (!selectedCountry || !selectedSchool) return;

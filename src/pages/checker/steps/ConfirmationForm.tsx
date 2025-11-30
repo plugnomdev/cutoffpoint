@@ -16,7 +16,7 @@ export default function ConfirmationForm({
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [gradesExpanded, setGradesExpanded] = useState(false);
 
-  // Fetch elective subjects if not provided
+  // Fetch elective subjects if not provided (only once on mount if needed)
   useEffect(() => {
     if (!electiveSubjects || electiveSubjects.length === 0) {
       console.log('Fetching elective subjects in ConfirmationForm...');
@@ -29,7 +29,7 @@ export default function ConfirmationForm({
           console.error('Failed to fetch elective subjects:', error);
         });
     }
-  }, [electiveSubjects]);
+  }, [electiveSubjects.length]); // Only depend on length, not the array itself
 
   // Helper function to get subject name by ID - use exactly what was matched in step 1
   const getSubjectName = (id: number) => {
@@ -222,9 +222,8 @@ export default function ConfirmationForm({
             )}
           </button>
 
-          <div className={`transition-all duration-300 ease-in-out ${
-            gradesExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
-          }`}>
+          <div className={`transition-all duration-300 ease-in-out ${gradesExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+            }`}>
             {/* Core Subjects */}
             <div className="p-3 sm:p-4 border-t">
               <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm bg-gray-100 px-2 py-1 rounded inline-block">Core Subjects</h4>
@@ -256,27 +255,27 @@ export default function ConfirmationForm({
               });
               return formData.selectedElectives.length > 0;
             })() && (
-              <div className="p-3 sm:p-4 border-t">
-                <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm bg-gray-100 px-2 py-1 rounded inline-block">Elective Subjects</h4>
-                <div className="space-y-2 sm:space-y-3">
-                  {formData.selectedElectives.map((subjectId, index) => {
-                    const displayName = getElectiveSubjectName(subjectId);
-                    // Get grade by subject name, not ID
-                    const gradeKeys = Object.keys(formData.electiveGrades || {});
-                    const grade = gradeKeys[index] ? formData.electiveGrades[gradeKeys[index]] : '';
-                    console.log('📋 Displaying elective:', { subjectId, displayName, grade, gradeKeys, index });
-                    return (
-                      <div key={subjectId} className="flex justify-between items-center">
-                        <span className="text-[10px] sm:text-xs font-medium text-gray-700 truncate">{displayName || subjectId}</span>
-                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-800 rounded flex-shrink-0 ml-2">
-                          {grade || 'Not graded'}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="p-3 sm:p-4 border-t">
+                  <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm bg-gray-100 px-2 py-1 rounded inline-block">Elective Subjects</h4>
+                  <div className="space-y-2 sm:space-y-3">
+                    {formData.selectedElectives.map((subjectId, index) => {
+                      const displayName = getElectiveSubjectName(subjectId);
+                      // Get grade by subject name, not ID
+                      const gradeKeys = Object.keys(formData.electiveGrades || {});
+                      const grade = gradeKeys[index] ? formData.electiveGrades[gradeKeys[index]] : '';
+                      console.log('📋 Displaying elective:', { subjectId, displayName, grade, gradeKeys, index });
+                      return (
+                        <div key={subjectId} className="flex justify-between items-center">
+                          <span className="text-[10px] sm:text-xs font-medium text-gray-700 truncate">{displayName || subjectId}</span>
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-800 rounded flex-shrink-0 ml-2">
+                            {grade || 'Not graded'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       </div>

@@ -72,7 +72,7 @@ export default function PreviousChecks() {
   // Fetch schools when country changes
   useEffect(() => {
     const loadSchools = async () => {
-      if (filters.country) {
+      if (filters.country && countries.length > 0) {
         const selectedCountry = countries.find(c => c.name === filters.country);
         if (selectedCountry) {
           try {
@@ -91,7 +91,7 @@ export default function PreviousChecks() {
       }
     };
     loadSchools();
-  }, [filters.country, countries]);
+  }, [filters.country]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,7 +165,7 @@ export default function PreviousChecks() {
             {/* Search Section */}
             <div className="bg-white rounded-lg shadow-sm">
               {/* Search Header - Always visible */}
-              <div 
+              <div
                 className="p-4 sm:p-6 flex justify-between items-center cursor-pointer"
                 onClick={() => setShowSearch(!showSearch)}
               >
@@ -211,8 +211,8 @@ export default function PreviousChecks() {
                           />
                         </div>
                       </div>
-                      <Button 
-                        type="submit" 
+                      <Button
+                        type="submit"
                         disabled={isSearching}
                         className="w-full sm:w-32 flex items-center justify-center"
                       >
@@ -246,8 +246,8 @@ export default function PreviousChecks() {
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
                     <div className="relative w-full sm:w-auto">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="flex items-center gap-2 w-full sm:w-auto justify-center"
                         onClick={() => setShowFilters(!showFilters)}
                       >
@@ -275,7 +275,7 @@ export default function PreviousChecks() {
                               </button>
                             )}
                           </div>
-                          
+
                           {/* School Filter */}
                           <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -328,7 +328,7 @@ export default function PreviousChecks() {
                                 {filters.school && (
                                   <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-sm">
                                     {filters.school}
-                                    <button 
+                                    <button
                                       onClick={() => setFilters(prev => ({ ...prev, school: '' }))}
                                       className="hover:text-blue-900"
                                     >
@@ -339,7 +339,7 @@ export default function PreviousChecks() {
                                 {filters.country && (
                                   <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-sm">
                                     {filters.country}
-                                    <button 
+                                    <button
                                       onClick={() => setFilters(prev => ({ ...prev, country: '' }))}
                                       className="hover:text-blue-900"
                                     >
@@ -417,11 +417,10 @@ export default function PreviousChecks() {
                           </div>
                           <div className="text-left sm:text-right space-y-3">
                             <div className="flex sm:justify-end">
-                              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                isQualified
+                              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${isQualified
                                   ? 'bg-green-100 text-green-700'
                                   : 'bg-red-100 text-red-700'
-                              }`}>
+                                }`}>
                                 {status}
                               </div>
                             </div>
@@ -437,9 +436,8 @@ export default function PreviousChecks() {
                             </div>
                             <Button
                               variant="outline"
-                              className={`flex items-center gap-2 w-full sm:w-auto justify-center ${
-                                !isQualified ? 'opacity-50 cursor-not-allowed' : ''
-                              }`}
+                              className={`flex items-center gap-2 w-full sm:w-auto justify-center ${!isQualified ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
                               onClick={() => {
                                 if (isQualified) {
                                   navigate(`/checker/results/${check.check_code}`);
