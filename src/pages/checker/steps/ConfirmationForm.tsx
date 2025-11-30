@@ -1,5 +1,5 @@
 import { FormData } from '../types';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { submitQualificationCheck, createInitialOrder, InitialOrderRequest, Subject, fetchSubjectsByType } from '../../../services/api/universityApi';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -15,11 +15,13 @@ export default function ConfirmationForm({
   const [electiveSubjects, setElectiveSubjects] = useState<Subject[]>(initialElectiveSubjects || []);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [gradesExpanded, setGradesExpanded] = useState(false);
+  const hasFetchedRef = useRef(false); // Track if we've already fetched
 
   // Fetch elective subjects if not provided (only once on mount if needed)
   useEffect(() => {
-    if (!electiveSubjects || electiveSubjects.length === 0) {
+    if (!hasFetchedRef.current && (!electiveSubjects || electiveSubjects.length === 0)) {
       console.log('Fetching elective subjects in ConfirmationForm...');
+      hasFetchedRef.current = true; // Mark as fetched immediately to prevent duplicate calls
       fetchSubjectsByType(2)
         .then(subjects => {
           console.log('Fetched elective subjects:', subjects.length);
@@ -27,9 +29,10 @@ export default function ConfirmationForm({
         })
         .catch(error => {
           console.error('Failed to fetch elective subjects:', error);
+          hasFetchedRef.current = false; // Reset on error so it can retry
         });
     }
-  }, [electiveSubjects.length]); // Only depend on length, not the array itself
+  }, []); // Empty dependency array - only run once on mount
 
   // Helper function to get subject name by ID - use exactly what was matched in step 1
   const getSubjectName = (id: number) => {
@@ -50,6 +53,20 @@ export default function ConfirmationForm({
   };
 
   const handlePayment = async () => {
+    // Prevent duplicate submissions
+    const lastSubmissionKey = 'lastCheckSubmission';
+    const lastSubmission = localStorage.getItem(lastSubmissionKey);
+    if (lastSubmission) {
+      const { timestamp, phone } = JSON.parse(lastSubmission);
+      const currentPhone = formData.background.phoneNumber.replace(/\s+/g, '');
+      // If same phone number submitted within last 60 seconds, prevent duplicate
+      if (phone === currentPhone && Date.now() - timestamp < 60000) {
+        console.warn('Duplicate submission prevented - please wait before trying again');
+        alert('Please wait a moment before submitting again.');
+        return;
+      }
+    }
+
     setPaymentProcessing(true);
     try {
 
@@ -135,6 +152,12 @@ export default function ConfirmationForm({
       };
 
       console.log('Check Request:', checkRequest);
+
+      // Store submission timestamp to prevent duplicates
+      localStorage.setItem(lastSubmissionKey, JSON.stringify({
+        timestamp: Date.now(),
+        phone: cleanPhone
+      }));
 
       // Call the check API
       const response = await submitQualificationCheck(checkRequest as any);
